@@ -32,7 +32,9 @@ $python = 'C:\Users\liy56\.conda\envs\AI\python.exe'
 
 The editable-install step is required once for this `src/`-layout project. It
 also installs the `ppms-control` command into the AI environment. Re-run it
-after moving the repository to a different directory.
+after moving the repository to a different directory. Unless the `AI` Conda
+environment is activated, prefer `& $python -m ppms_control ...`; the
+environment's `Scripts` directory may not be on the current PowerShell `PATH`.
 
 The example database is written below `run_data/`. For real measurements, use
 a local, non-synchronised data directory and archive the closed run afterwards;
