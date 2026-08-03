@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75", "wheel>=0.45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ppms-qcodes-control"
+version = "0.1.0"
+description = "Simulation-first control scaffold for a DynaCool, two lock-ins, and two Keithley 2400 SMUs"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "qcodes==0.58.0",
+  "pyvisa==1.16.2",
+  "numpy==2.4.6",
+]
+
+[project.optional-dependencies]
+real-ppms = ["MultiPyVu==3.6.1"]
+
+[project.scripts]
+ppms-control = "ppms_control.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

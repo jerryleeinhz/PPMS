@@ -1,0 +1,41 @@
+[runtime]
+simulation = true
+seed = 1729
+sample_name = "SIMULATED_SAMPLE"
+
+[instruments]
+reference_frequency_hz = 17.777
+series_resistance_ohm = 100000.0
+initial_temperature_k = 300.0
+initial_field_t = 0.0
+
+[safety]
+normal_current_limit_a = 0.0002
+diagnostic_current_limit_a = 0.0005
+field_abs_limit_t = 2.0
+temperature_min_k = 1.9
+temperature_max_k = 400.0
+gate_temperature_limit_k = 20.0
+gate_voltage_limit_v = 10.0
+gate_compliance_limit_a = 1e-8
+gate_leakage_limit_a = 1e-9
+
+[acquisition]
+averages = 8
+sample_interval_s = 0.0
+settle_s = 0.0
+max_attempts = 3
+reference_frequency_tolerance_hz = 0.05
+noise_limit_v = 1e-6
+temperature_tolerance_k = 0.2
+field_tolerance_t = 0.001
+
+[current_sweep]
+start_current_a = -0.00008
+stop_current_a = 0.00008
+points = 9
+target_temperature_k = 300.0
+target_field_t = 0.0
+
+[data]
+database_path = "../run_data/ppms_control.sqlite"
