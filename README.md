@@ -23,18 +23,18 @@ manufacturer-supported MultiPyVu client.
 From this directory in PowerShell:
 
 ```powershell
-$python = 'C:\Users\liy56\.conda\envs\AI\python.exe'
-& $python -m pip install --no-deps -e .
-& $python -m unittest discover -s tests -v
-& $python -m ppms_control validate-config config\simulation.toml
-& $python -m ppms_control simulate config\simulation.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install --no-deps -e .
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m unittest discover -s tests -v
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control validate-config config\simulation.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate config\simulation.toml
 ```
 
 The editable-install step is required once for this `src/`-layout project. It
 also installs the `ppms-control` command into the AI environment. Re-run it
 after moving the repository to a different directory. Unless the `AI` Conda
-environment is activated, prefer `& $python -m ppms_control ...`; the
+environment is activated, prefer the complete Python path shown above; the
 environment's `Scripts` directory may not be on the current PowerShell `PATH`.
+Each command is standalone and can be pasted separately.
 
 The example database is written below `run_data/`. For real measurements, use
 a local, non-synchronised data directory and archive the closed run afterwards;
