@@ -28,12 +28,31 @@ class InstrumentConfig:
 
 
 @dataclass(frozen=True)
+class ConnectionConfig:
+    visa_backend: str
+    visa_timeout_ms: int
+    sr830_address: str
+    sr865a_address: str
+    gate_top_address: str
+    gate_bottom_address: str
+    ppms_host: str
+    ppms_port: int
+
+
+@dataclass(frozen=True)
 class SafetyLimits:
-    normal_current_limit_a: float
-    diagnostic_current_limit_a: float
+    source_voltage_min_v: float
+    source_voltage_max_v: float
+    source_safe_idle_voltage_v: float
+    source_frequency_min_hz: float
+    source_frequency_max_hz: float
+    estimated_current_limit_a: float
     field_abs_limit_t: float
+    field_rate_max_t_per_s: float
+    field_shutdown_rate_t_per_s: float
     temperature_min_k: float
     temperature_max_k: float
+    temperature_rate_max_k_per_min: float
     gate_temperature_limit_k: float
     gate_voltage_limit_v: float
     gate_compliance_limit_a: float
@@ -50,15 +69,64 @@ class AcquisitionConfig:
     noise_limit_v: float
     temperature_tolerance_k: float
     field_tolerance_t: float
+    source_voltage_tolerance_v: float
 
 
 @dataclass(frozen=True)
-class CurrentSweepConfig:
-    start_current_a: float
-    stop_current_a: float
+class VoltageSweepConfig:
+    start_voltage_v: float
+    stop_voltage_v: float
     points: int
     target_temperature_k: float
     target_field_t: float
+    temperature_rate_k_per_min: float
+    field_rate_t_per_s: float
+    stabilization_timeout_s: float
+    stability_poll_s: float
+
+
+@dataclass(frozen=True)
+class FrequencySweepConfig:
+    start_frequency_hz: float
+    stop_frequency_hz: float
+    points: int
+    source_voltage_v: float
+    target_temperature_k: float
+    target_field_t: float
+    temperature_rate_k_per_min: float
+    field_rate_t_per_s: float
+    stabilization_timeout_s: float
+    stability_poll_s: float
+
+
+@dataclass(frozen=True)
+class FieldSweepConfig:
+    start_field_t: float
+    stop_field_t: float
+    points: int
+    source_voltage_v: float
+    frequency_hz: float
+    target_temperature_k: float
+    temperature_rate_k_per_min: float
+    field_rate_t_per_s: float
+    stabilization_timeout_s: float
+    stability_poll_s: float
+
+
+@dataclass(frozen=True)
+class TemperatureFieldSweepConfig:
+    start_temperature_k: float
+    stop_temperature_k: float
+    temperature_points: int
+    start_field_t: float
+    stop_field_t: float
+    field_points: int
+    source_voltage_v: float
+    frequency_hz: float
+    temperature_rate_k_per_min: float
+    field_rate_t_per_s: float
+    stabilization_timeout_s: float
+    stability_poll_s: float
 
 
 @dataclass(frozen=True)
@@ -70,9 +138,13 @@ class DataConfig:
 class AppConfig:
     runtime: RuntimeConfig
     instruments: InstrumentConfig
+    connections: ConnectionConfig
     safety: SafetyLimits
     acquisition: AcquisitionConfig
-    current_sweep: CurrentSweepConfig
+    voltage_sweep: VoltageSweepConfig
+    frequency_sweep: FrequencySweepConfig
+    field_sweep: FieldSweepConfig
+    temperature_field_sweep: TemperatureFieldSweepConfig
     data: DataConfig
 
     def canonical_json(self) -> str:
@@ -82,9 +154,13 @@ class AppConfig:
 _ROOT_KEYS = {
     "runtime",
     "instruments",
+    "connections",
     "safety",
     "acquisition",
-    "current_sweep",
+    "voltage_sweep",
+    "frequency_sweep",
+    "field_sweep",
+    "temperature_field_sweep",
     "data",
 }
 
@@ -112,11 +188,19 @@ def _bool(value: Any, path: str) -> bool:
     return value
 
 
-def _integer(value: Any, path: str, *, minimum: int | None = None) -> int:
+def _integer(
+    value: Any,
+    path: str,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
     if type(value) is not int:
         raise ConfigError(f"{path} must be an integer.")
     if minimum is not None and value < minimum:
         raise ConfigError(f"{path} must be >= {minimum}.")
+    if maximum is not None and value > maximum:
+        raise ConfigError(f"{path} must be <= {maximum}.")
     return value
 
 
@@ -164,15 +248,36 @@ def load_config(path: str | Path) -> AppConfig:
             "initial_field_t",
         },
     )
+    connections_raw = _section(
+        raw,
+        "connections",
+        {
+            "visa_backend",
+            "visa_timeout_ms",
+            "sr830_address",
+            "sr865a_address",
+            "gate_top_address",
+            "gate_bottom_address",
+            "ppms_host",
+            "ppms_port",
+        },
+    )
     safety_raw = _section(
         raw,
         "safety",
         {
-            "normal_current_limit_a",
-            "diagnostic_current_limit_a",
+            "source_voltage_min_v",
+            "source_voltage_max_v",
+            "source_safe_idle_voltage_v",
+            "source_frequency_min_hz",
+            "source_frequency_max_hz",
+            "estimated_current_limit_a",
             "field_abs_limit_t",
+            "field_rate_max_t_per_s",
+            "field_shutdown_rate_t_per_s",
             "temperature_min_k",
             "temperature_max_k",
+            "temperature_rate_max_k_per_min",
             "gate_temperature_limit_k",
             "gate_voltage_limit_v",
             "gate_compliance_limit_a",
@@ -191,17 +296,72 @@ def load_config(path: str | Path) -> AppConfig:
             "noise_limit_v",
             "temperature_tolerance_k",
             "field_tolerance_t",
+            "source_voltage_tolerance_v",
         },
     )
     sweep_raw = _section(
         raw,
-        "current_sweep",
+        "voltage_sweep",
         {
-            "start_current_a",
-            "stop_current_a",
+            "start_voltage_v",
+            "stop_voltage_v",
             "points",
             "target_temperature_k",
             "target_field_t",
+            "temperature_rate_k_per_min",
+            "field_rate_t_per_s",
+            "stabilization_timeout_s",
+            "stability_poll_s",
+        },
+    )
+    frequency_sweep_raw = _section(
+        raw,
+        "frequency_sweep",
+        {
+            "start_frequency_hz",
+            "stop_frequency_hz",
+            "points",
+            "source_voltage_v",
+            "target_temperature_k",
+            "target_field_t",
+            "temperature_rate_k_per_min",
+            "field_rate_t_per_s",
+            "stabilization_timeout_s",
+            "stability_poll_s",
+        },
+    )
+    field_sweep_raw = _section(
+        raw,
+        "field_sweep",
+        {
+            "start_field_t",
+            "stop_field_t",
+            "points",
+            "source_voltage_v",
+            "frequency_hz",
+            "target_temperature_k",
+            "temperature_rate_k_per_min",
+            "field_rate_t_per_s",
+            "stabilization_timeout_s",
+            "stability_poll_s",
+        },
+    )
+    temperature_field_sweep_raw = _section(
+        raw,
+        "temperature_field_sweep",
+        {
+            "start_temperature_k",
+            "stop_temperature_k",
+            "temperature_points",
+            "start_field_t",
+            "stop_field_t",
+            "field_points",
+            "source_voltage_v",
+            "frequency_hz",
+            "temperature_rate_k_per_min",
+            "field_rate_t_per_s",
+            "stabilization_timeout_s",
+            "stability_poll_s",
         },
     )
     data_raw = _section(raw, "data", {"database_path"})
@@ -211,9 +371,6 @@ def load_config(path: str | Path) -> AppConfig:
         seed=_integer(runtime_raw["seed"], "runtime.seed", minimum=0),
         sample_name=_text(runtime_raw["sample_name"], "runtime.sample_name"),
     )
-    if not runtime.simulation:
-        raise ConfigError("Real-hardware mode is not implemented in milestone V1.")
-
     instruments = InstrumentConfig(
         reference_frequency_hz=_number(
             instruments_raw["reference_frequency_hz"],
@@ -230,20 +387,82 @@ def load_config(path: str | Path) -> AppConfig:
         ),
         initial_field_t=_number(instruments_raw["initial_field_t"], "instruments.initial_field_t"),
     )
-    safety = SafetyLimits(
-        normal_current_limit_a=_number(
-            safety_raw["normal_current_limit_a"], "safety.normal_current_limit_a", positive=True
+    connections = ConnectionConfig(
+        visa_backend=_text(connections_raw["visa_backend"], "connections.visa_backend"),
+        visa_timeout_ms=_integer(
+            connections_raw["visa_timeout_ms"],
+            "connections.visa_timeout_ms",
+            minimum=1,
         ),
-        diagnostic_current_limit_a=_number(
-            safety_raw["diagnostic_current_limit_a"],
-            "safety.diagnostic_current_limit_a",
+        sr830_address=_text(connections_raw["sr830_address"], "connections.sr830_address"),
+        sr865a_address=_text(
+            connections_raw["sr865a_address"], "connections.sr865a_address"
+        ),
+        gate_top_address=_text(
+            connections_raw["gate_top_address"], "connections.gate_top_address"
+        ),
+        gate_bottom_address=_text(
+            connections_raw["gate_bottom_address"], "connections.gate_bottom_address"
+        ),
+        ppms_host=_text(connections_raw["ppms_host"], "connections.ppms_host"),
+        ppms_port=_integer(
+            connections_raw["ppms_port"],
+            "connections.ppms_port",
+            minimum=1,
+            maximum=65535,
+        ),
+    )
+    safety = SafetyLimits(
+        source_voltage_min_v=_number(
+            safety_raw["source_voltage_min_v"],
+            "safety.source_voltage_min_v",
+            positive=True,
+        ),
+        source_voltage_max_v=_number(
+            safety_raw["source_voltage_max_v"],
+            "safety.source_voltage_max_v",
+            positive=True,
+        ),
+        source_safe_idle_voltage_v=_number(
+            safety_raw["source_safe_idle_voltage_v"],
+            "safety.source_safe_idle_voltage_v",
+            positive=True,
+        ),
+        source_frequency_min_hz=_number(
+            safety_raw["source_frequency_min_hz"],
+            "safety.source_frequency_min_hz",
+            positive=True,
+        ),
+        source_frequency_max_hz=_number(
+            safety_raw["source_frequency_max_hz"],
+            "safety.source_frequency_max_hz",
+            positive=True,
+        ),
+        estimated_current_limit_a=_number(
+            safety_raw["estimated_current_limit_a"],
+            "safety.estimated_current_limit_a",
             positive=True,
         ),
         field_abs_limit_t=_number(
             safety_raw["field_abs_limit_t"], "safety.field_abs_limit_t", positive=True
         ),
+        field_rate_max_t_per_s=_number(
+            safety_raw["field_rate_max_t_per_s"],
+            "safety.field_rate_max_t_per_s",
+            positive=True,
+        ),
+        field_shutdown_rate_t_per_s=_number(
+            safety_raw["field_shutdown_rate_t_per_s"],
+            "safety.field_shutdown_rate_t_per_s",
+            positive=True,
+        ),
         temperature_min_k=_number(safety_raw["temperature_min_k"], "safety.temperature_min_k"),
         temperature_max_k=_number(safety_raw["temperature_max_k"], "safety.temperature_max_k"),
+        temperature_rate_max_k_per_min=_number(
+            safety_raw["temperature_rate_max_k_per_min"],
+            "safety.temperature_rate_max_k_per_min",
+            positive=True,
+        ),
         gate_temperature_limit_k=_number(
             safety_raw["gate_temperature_limit_k"], "safety.gate_temperature_limit_k"
         ),
@@ -286,15 +505,201 @@ def load_config(path: str | Path) -> AppConfig:
             "acquisition.field_tolerance_t",
             nonnegative=True,
         ),
-    )
-    sweep = CurrentSweepConfig(
-        start_current_a=_number(sweep_raw["start_current_a"], "current_sweep.start_current_a"),
-        stop_current_a=_number(sweep_raw["stop_current_a"], "current_sweep.stop_current_a"),
-        points=_integer(sweep_raw["points"], "current_sweep.points", minimum=1),
-        target_temperature_k=_number(
-            sweep_raw["target_temperature_k"], "current_sweep.target_temperature_k"
+        source_voltage_tolerance_v=_number(
+            acquisition_raw["source_voltage_tolerance_v"],
+            "acquisition.source_voltage_tolerance_v",
+            nonnegative=True,
         ),
-        target_field_t=_number(sweep_raw["target_field_t"], "current_sweep.target_field_t"),
+    )
+    sweep = VoltageSweepConfig(
+        start_voltage_v=_number(
+            sweep_raw["start_voltage_v"],
+            "voltage_sweep.start_voltage_v",
+            nonnegative=True,
+        ),
+        stop_voltage_v=_number(
+            sweep_raw["stop_voltage_v"],
+            "voltage_sweep.stop_voltage_v",
+            nonnegative=True,
+        ),
+        points=_integer(sweep_raw["points"], "voltage_sweep.points", minimum=1),
+        target_temperature_k=_number(
+            sweep_raw["target_temperature_k"], "voltage_sweep.target_temperature_k"
+        ),
+        target_field_t=_number(sweep_raw["target_field_t"], "voltage_sweep.target_field_t"),
+        temperature_rate_k_per_min=_number(
+            sweep_raw["temperature_rate_k_per_min"],
+            "voltage_sweep.temperature_rate_k_per_min",
+            positive=True,
+        ),
+        field_rate_t_per_s=_number(
+            sweep_raw["field_rate_t_per_s"],
+            "voltage_sweep.field_rate_t_per_s",
+            positive=True,
+        ),
+        stabilization_timeout_s=_number(
+            sweep_raw["stabilization_timeout_s"],
+            "voltage_sweep.stabilization_timeout_s",
+            positive=True,
+        ),
+        stability_poll_s=_number(
+            sweep_raw["stability_poll_s"],
+            "voltage_sweep.stability_poll_s",
+            nonnegative=True,
+        ),
+    )
+    frequency_sweep = FrequencySweepConfig(
+        start_frequency_hz=_number(
+            frequency_sweep_raw["start_frequency_hz"],
+            "frequency_sweep.start_frequency_hz",
+            positive=True,
+        ),
+        stop_frequency_hz=_number(
+            frequency_sweep_raw["stop_frequency_hz"],
+            "frequency_sweep.stop_frequency_hz",
+            positive=True,
+        ),
+        points=_integer(
+            frequency_sweep_raw["points"],
+            "frequency_sweep.points",
+            minimum=1,
+        ),
+        source_voltage_v=_number(
+            frequency_sweep_raw["source_voltage_v"],
+            "frequency_sweep.source_voltage_v",
+            nonnegative=True,
+        ),
+        target_temperature_k=_number(
+            frequency_sweep_raw["target_temperature_k"],
+            "frequency_sweep.target_temperature_k",
+        ),
+        target_field_t=_number(
+            frequency_sweep_raw["target_field_t"],
+            "frequency_sweep.target_field_t",
+        ),
+        temperature_rate_k_per_min=_number(
+            frequency_sweep_raw["temperature_rate_k_per_min"],
+            "frequency_sweep.temperature_rate_k_per_min",
+            positive=True,
+        ),
+        field_rate_t_per_s=_number(
+            frequency_sweep_raw["field_rate_t_per_s"],
+            "frequency_sweep.field_rate_t_per_s",
+            positive=True,
+        ),
+        stabilization_timeout_s=_number(
+            frequency_sweep_raw["stabilization_timeout_s"],
+            "frequency_sweep.stabilization_timeout_s",
+            positive=True,
+        ),
+        stability_poll_s=_number(
+            frequency_sweep_raw["stability_poll_s"],
+            "frequency_sweep.stability_poll_s",
+            nonnegative=True,
+        ),
+    )
+    field_sweep = FieldSweepConfig(
+        start_field_t=_number(
+            field_sweep_raw["start_field_t"],
+            "field_sweep.start_field_t",
+        ),
+        stop_field_t=_number(
+            field_sweep_raw["stop_field_t"],
+            "field_sweep.stop_field_t",
+        ),
+        points=_integer(field_sweep_raw["points"], "field_sweep.points", minimum=1),
+        source_voltage_v=_number(
+            field_sweep_raw["source_voltage_v"],
+            "field_sweep.source_voltage_v",
+            nonnegative=True,
+        ),
+        frequency_hz=_number(
+            field_sweep_raw["frequency_hz"],
+            "field_sweep.frequency_hz",
+            positive=True,
+        ),
+        target_temperature_k=_number(
+            field_sweep_raw["target_temperature_k"],
+            "field_sweep.target_temperature_k",
+        ),
+        temperature_rate_k_per_min=_number(
+            field_sweep_raw["temperature_rate_k_per_min"],
+            "field_sweep.temperature_rate_k_per_min",
+            positive=True,
+        ),
+        field_rate_t_per_s=_number(
+            field_sweep_raw["field_rate_t_per_s"],
+            "field_sweep.field_rate_t_per_s",
+            positive=True,
+        ),
+        stabilization_timeout_s=_number(
+            field_sweep_raw["stabilization_timeout_s"],
+            "field_sweep.stabilization_timeout_s",
+            positive=True,
+        ),
+        stability_poll_s=_number(
+            field_sweep_raw["stability_poll_s"],
+            "field_sweep.stability_poll_s",
+            nonnegative=True,
+        ),
+    )
+    temperature_field_sweep = TemperatureFieldSweepConfig(
+        start_temperature_k=_number(
+            temperature_field_sweep_raw["start_temperature_k"],
+            "temperature_field_sweep.start_temperature_k",
+        ),
+        stop_temperature_k=_number(
+            temperature_field_sweep_raw["stop_temperature_k"],
+            "temperature_field_sweep.stop_temperature_k",
+        ),
+        temperature_points=_integer(
+            temperature_field_sweep_raw["temperature_points"],
+            "temperature_field_sweep.temperature_points",
+            minimum=1,
+        ),
+        start_field_t=_number(
+            temperature_field_sweep_raw["start_field_t"],
+            "temperature_field_sweep.start_field_t",
+        ),
+        stop_field_t=_number(
+            temperature_field_sweep_raw["stop_field_t"],
+            "temperature_field_sweep.stop_field_t",
+        ),
+        field_points=_integer(
+            temperature_field_sweep_raw["field_points"],
+            "temperature_field_sweep.field_points",
+            minimum=1,
+        ),
+        source_voltage_v=_number(
+            temperature_field_sweep_raw["source_voltage_v"],
+            "temperature_field_sweep.source_voltage_v",
+            nonnegative=True,
+        ),
+        frequency_hz=_number(
+            temperature_field_sweep_raw["frequency_hz"],
+            "temperature_field_sweep.frequency_hz",
+            positive=True,
+        ),
+        temperature_rate_k_per_min=_number(
+            temperature_field_sweep_raw["temperature_rate_k_per_min"],
+            "temperature_field_sweep.temperature_rate_k_per_min",
+            positive=True,
+        ),
+        field_rate_t_per_s=_number(
+            temperature_field_sweep_raw["field_rate_t_per_s"],
+            "temperature_field_sweep.field_rate_t_per_s",
+            positive=True,
+        ),
+        stabilization_timeout_s=_number(
+            temperature_field_sweep_raw["stabilization_timeout_s"],
+            "temperature_field_sweep.stabilization_timeout_s",
+            positive=True,
+        ),
+        stability_poll_s=_number(
+            temperature_field_sweep_raw["stability_poll_s"],
+            "temperature_field_sweep.stability_poll_s",
+            nonnegative=True,
+        ),
     )
     database_value = _text(data_raw["database_path"], "data.database_path")
     database_path = Path(database_value)
@@ -304,23 +709,196 @@ def load_config(path: str | Path) -> AppConfig:
 
     if safety.temperature_min_k >= safety.temperature_max_k:
         raise ConfigError("safety.temperature_min_k must be below temperature_max_k.")
-    if safety.normal_current_limit_a > safety.diagnostic_current_limit_a:
-        raise ConfigError("Normal current limit must not exceed diagnostic current limit.")
-    for label, current in (
-        ("start_current_a", sweep.start_current_a),
-        ("stop_current_a", sweep.stop_current_a),
+    if safety.source_voltage_min_v >= safety.source_voltage_max_v:
+        raise ConfigError("Source voltage minimum must be below the maximum.")
+    if safety.source_voltage_min_v < 0.004 or safety.source_voltage_max_v > 5.0:
+        raise ConfigError("SR830 source voltage range must stay within 0.004 to 5.0 Vrms.")
+    if safety.source_frequency_min_hz >= safety.source_frequency_max_hz:
+        raise ConfigError("Source frequency minimum must be below the maximum.")
+    if safety.source_frequency_min_hz < 0.001 or safety.source_frequency_max_hz > 102000.0:
+        raise ConfigError("SR830 source frequency range must stay within 0.001 to 102000 Hz.")
+    if not (
+        safety.source_frequency_min_hz
+        <= instruments.reference_frequency_hz
+        <= safety.source_frequency_max_hz
     ):
-        if abs(current) > safety.normal_current_limit_a:
-            raise ConfigError(f"current_sweep.{label} exceeds the normal current limit.")
-    if sweep.points > 1 and sweep.start_current_a == sweep.stop_current_a:
-        raise ConfigError("A multi-point current sweep must contain distinct setpoints.")
+        raise ConfigError("Reference frequency is outside the source frequency range.")
+    if not (
+        safety.source_voltage_min_v
+        <= safety.source_safe_idle_voltage_v
+        <= safety.source_voltage_max_v
+    ):
+        raise ConfigError("Source safe-idle voltage must be inside the source voltage range.")
+    if (
+        safety.source_safe_idle_voltage_v / instruments.series_resistance_ohm
+        > safety.estimated_current_limit_a
+    ):
+        raise ConfigError("Source safe-idle voltage exceeds the estimated current limit.")
+    if safety.field_shutdown_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Field shutdown rate must not exceed the maximum field rate.")
+    for label, voltage in (
+        ("start_voltage_v", sweep.start_voltage_v),
+        ("stop_voltage_v", sweep.stop_voltage_v),
+    ):
+        if not safety.source_voltage_min_v <= voltage <= safety.source_voltage_max_v:
+            raise ConfigError(f"voltage_sweep.{label} is outside the source voltage range.")
+        if voltage / instruments.series_resistance_ohm > safety.estimated_current_limit_a:
+            raise ConfigError(f"voltage_sweep.{label} exceeds the estimated current limit.")
+    if sweep.points > 1 and sweep.start_voltage_v == sweep.stop_voltage_v:
+        raise ConfigError("A multi-point voltage sweep must contain distinct setpoints.")
     if not safety.temperature_min_k <= sweep.target_temperature_k <= safety.temperature_max_k:
-        raise ConfigError("Current-sweep target temperature is outside the safety range.")
+        raise ConfigError("Voltage-sweep target temperature is outside the safety range.")
     if abs(sweep.target_field_t) > safety.field_abs_limit_t:
-        raise ConfigError("Current-sweep target field exceeds the safety limit.")
+        raise ConfigError("Voltage-sweep target field exceeds the safety limit.")
+    if sweep.temperature_rate_k_per_min > safety.temperature_rate_max_k_per_min:
+        raise ConfigError("Voltage-sweep temperature rate exceeds the safety limit.")
+    if sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Voltage-sweep field rate exceeds the safety limit.")
+    for label, frequency_hz in (
+        ("start_frequency_hz", frequency_sweep.start_frequency_hz),
+        ("stop_frequency_hz", frequency_sweep.stop_frequency_hz),
+    ):
+        if not safety.source_frequency_min_hz <= frequency_hz <= safety.source_frequency_max_hz:
+            raise ConfigError(f"frequency_sweep.{label} is outside the source frequency range.")
+    if (
+        frequency_sweep.points > 1
+        and frequency_sweep.start_frequency_hz == frequency_sweep.stop_frequency_hz
+    ):
+        raise ConfigError("A multi-point frequency sweep must contain distinct setpoints.")
+    if not (
+        safety.source_voltage_min_v
+        <= frequency_sweep.source_voltage_v
+        <= safety.source_voltage_max_v
+    ):
+        raise ConfigError("Frequency-sweep source voltage is outside the source voltage range.")
+    if (
+        frequency_sweep.source_voltage_v / instruments.series_resistance_ohm
+        > safety.estimated_current_limit_a
+    ):
+        raise ConfigError("Frequency-sweep source voltage exceeds the estimated current limit.")
+    if not (
+        safety.temperature_min_k
+        <= frequency_sweep.target_temperature_k
+        <= safety.temperature_max_k
+    ):
+        raise ConfigError("Frequency-sweep target temperature is outside the safety range.")
+    if abs(frequency_sweep.target_field_t) > safety.field_abs_limit_t:
+        raise ConfigError("Frequency-sweep target field exceeds the safety limit.")
+    if frequency_sweep.temperature_rate_k_per_min > safety.temperature_rate_max_k_per_min:
+        raise ConfigError("Frequency-sweep temperature rate exceeds the safety limit.")
+    if frequency_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Frequency-sweep field rate exceeds the safety limit.")
+    for label, field_t in (
+        ("start_field_t", field_sweep.start_field_t),
+        ("stop_field_t", field_sweep.stop_field_t),
+    ):
+        if abs(field_t) > safety.field_abs_limit_t:
+            raise ConfigError(f"field_sweep.{label} exceeds the safety limit.")
+    if field_sweep.points > 1 and field_sweep.start_field_t == field_sweep.stop_field_t:
+        raise ConfigError("A multi-point field sweep must contain distinct setpoints.")
+    if not safety.source_voltage_min_v <= field_sweep.source_voltage_v <= safety.source_voltage_max_v:
+        raise ConfigError("Field-sweep source voltage is outside the source voltage range.")
+    if (
+        field_sweep.source_voltage_v / instruments.series_resistance_ohm
+        > safety.estimated_current_limit_a
+    ):
+        raise ConfigError("Field-sweep source voltage exceeds the estimated current limit.")
+    if not safety.source_frequency_min_hz <= field_sweep.frequency_hz <= safety.source_frequency_max_hz:
+        raise ConfigError("Field-sweep frequency is outside the source frequency range.")
+    if not safety.temperature_min_k <= field_sweep.target_temperature_k <= safety.temperature_max_k:
+        raise ConfigError("Field-sweep target temperature is outside the safety range.")
+    if field_sweep.temperature_rate_k_per_min > safety.temperature_rate_max_k_per_min:
+        raise ConfigError("Field-sweep temperature rate exceeds the safety limit.")
+    if field_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Field-sweep field rate exceeds the safety limit.")
+    for label, temperature_k in (
+        ("start_temperature_k", temperature_field_sweep.start_temperature_k),
+        ("stop_temperature_k", temperature_field_sweep.stop_temperature_k),
+    ):
+        if not safety.temperature_min_k <= temperature_k <= safety.temperature_max_k:
+            raise ConfigError(
+                f"temperature_field_sweep.{label} is outside the safety range."
+            )
+    if (
+        temperature_field_sweep.temperature_points > 1
+        and temperature_field_sweep.start_temperature_k
+        == temperature_field_sweep.stop_temperature_k
+    ):
+        raise ConfigError("A multi-point temperature grid must contain distinct setpoints.")
+    for label, field_t in (
+        ("start_field_t", temperature_field_sweep.start_field_t),
+        ("stop_field_t", temperature_field_sweep.stop_field_t),
+    ):
+        if abs(field_t) > safety.field_abs_limit_t:
+            raise ConfigError(f"temperature_field_sweep.{label} exceeds the safety limit.")
+    if (
+        temperature_field_sweep.field_points > 1
+        and temperature_field_sweep.start_field_t == temperature_field_sweep.stop_field_t
+    ):
+        raise ConfigError("A multi-point field grid must contain distinct setpoints.")
+    if not (
+        safety.source_voltage_min_v
+        <= temperature_field_sweep.source_voltage_v
+        <= safety.source_voltage_max_v
+    ):
+        raise ConfigError(
+            "Temperature-field source voltage is outside the source voltage range."
+        )
+    if (
+        temperature_field_sweep.source_voltage_v / instruments.series_resistance_ohm
+        > safety.estimated_current_limit_a
+    ):
+        raise ConfigError(
+            "Temperature-field source voltage exceeds the estimated current limit."
+        )
+    if not (
+        safety.source_frequency_min_hz
+        <= temperature_field_sweep.frequency_hz
+        <= safety.source_frequency_max_hz
+    ):
+        raise ConfigError("Temperature-field frequency is outside the source frequency range.")
+    if (
+        temperature_field_sweep.temperature_rate_k_per_min
+        > safety.temperature_rate_max_k_per_min
+    ):
+        raise ConfigError("Temperature-field temperature rate exceeds the safety limit.")
+    if temperature_field_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Temperature-field field rate exceeds the safety limit.")
     if not safety.temperature_min_k <= instruments.initial_temperature_k <= safety.temperature_max_k:
         raise ConfigError("Initial simulated temperature is outside the safety range.")
     if abs(instruments.initial_field_t) > safety.field_abs_limit_t:
         raise ConfigError("Initial simulated field exceeds the safety limit.")
 
-    return AppConfig(runtime, instruments, safety, acquisition, sweep, data)
+    visa_addresses = (
+        connections.sr830_address,
+        connections.sr865a_address,
+        connections.gate_top_address,
+        connections.gate_bottom_address,
+    )
+    if len(set(visa_addresses)) != len(visa_addresses):
+        raise ConfigError("Every VISA instrument must have a distinct address.")
+    if not runtime.simulation:
+        if "CHANGE_ME" in runtime.sample_name.upper():
+            raise ConfigError("runtime.sample_name is still a placeholder.")
+        for label, endpoint in (
+            ("sr830_address", connections.sr830_address),
+            ("sr865a_address", connections.sr865a_address),
+            ("gate_top_address", connections.gate_top_address),
+            ("gate_bottom_address", connections.gate_bottom_address),
+        ):
+            endpoint_upper = endpoint.upper()
+            if "CHANGE_ME" in endpoint_upper or endpoint_upper.startswith("SIMULATED::"):
+                raise ConfigError(f"connections.{label} is still a placeholder.")
+
+    return AppConfig(
+        runtime,
+        instruments,
+        connections,
+        safety,
+        acquisition,
+        sweep,
+        frequency_sweep,
+        field_sweep,
+        temperature_field_sweep,
+        data,
+    )

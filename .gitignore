@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
 run_data/
+config/*.local.toml
 .test-tmp/*
 !.test-tmp/.gitkeep

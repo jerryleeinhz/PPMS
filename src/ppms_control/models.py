@@ -9,7 +9,9 @@ import math
 @dataclass(frozen=True)
 class MeasurementCondition:
     sequence_index: int
-    current_a: float
+    source_voltage_v: float
+    estimated_current_a: float
+    frequency_hz: float
     temperature_k: float
     field_t: float
 
@@ -20,7 +22,8 @@ class MeasurementCondition:
 
         payload = json.dumps(
             {
-                "current_a": canonical(self.current_a),
+                "source_voltage_v": canonical(self.source_voltage_v),
+                "frequency_hz": canonical(self.frequency_hz),
                 "field_t": canonical(self.field_t),
                 "temperature_k": canonical(self.temperature_k),
             },
@@ -36,6 +39,7 @@ class LockinReading:
     x_v: float
     y_v: float
     frequency_hz: float
+    harmonic: int
     reference_locked: bool
     overload: bool
 
@@ -50,8 +54,51 @@ class LockinReading:
 
 @dataclass(frozen=True)
 class LockinPairReading:
-    xx_1w: LockinReading
-    xy_3w: LockinReading
+    requested_harmonic: int
+    xx: LockinReading
+    xy: LockinReading
+
+    def __post_init__(self) -> None:
+        if self.requested_harmonic not in {1, 2, 3}:
+            raise ValueError("Requested harmonic must be 1, 2, or 3.")
+
+
+@dataclass(frozen=True)
+class GateState:
+    source_voltage_v: float
+    output_enabled: bool
+    compliance_a: float
+    measured_current_a: float | None
+
+
+@dataclass(frozen=True)
+class PPMSState:
+    temperature_k: float
+    temperature_status: str
+    field_t: float
+    field_status: str
+    chamber_status: str
+    sample_position_deg: float | None
+    position_status: str | None
+    stable: bool
+
+
+@dataclass(frozen=True)
+class PhysicalState:
+    source_voltage_v: float
+    source_frequency_hz: float
+    gate_top: GateState
+    gate_bottom: GateState
+    ppms: PPMSState
+
+
+@dataclass(frozen=True)
+class InstrumentSample:
+    condition: MeasurementCondition
+    attempt_index: int
+    sample_index: int
+    lockins: LockinPairReading
+    state: PhysicalState
 
 
 @dataclass(frozen=True)
@@ -80,3 +127,58 @@ class AttemptResult:
     accepted: bool
     flags: tuple[str, ...]
     error: str | None = None
+
+
+@dataclass(frozen=True)
+class TransportReading:
+    """One backend-independent transport observation.
+
+    A reading represents one spatial signal (xx or xy) at one harmonic.  Fields
+    that a backend cannot provide remain ``None``; in particular, the installed
+    ETO 1.2 software provides dB-referenced amplitudes but no phase for 2w/3w.
+    """
+
+    backend: str
+    signal: str
+    instrument_channel: str
+    harmonic: int
+    timestamp_s: float
+    temperature_k: float
+    field_t: float
+    sample_position_deg: float | None
+    drive_current_a: float | None
+    frequency_hz: float | None
+    x_v: float | None
+    y_v: float | None
+    amplitude_v: float | None
+    phase_deg: float | None
+    ratio_db: float | None
+    phase_resolved: bool
+    sequence_index: int | None = None
+    source_row: int | None = None
+    comment: str = ""
+    status_code: int | None = None
+    quality_flags: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.backend:
+            raise ValueError("Transport backend must not be empty.")
+        if self.signal not in {"xx", "xy"}:
+            raise ValueError("Transport signal must be 'xx' or 'xy'.")
+        if self.harmonic not in {1, 2, 3}:
+            raise ValueError("Transport harmonic must be 1, 2, or 3.")
+        numeric_values = (
+            self.timestamp_s,
+            self.temperature_k,
+            self.field_t,
+            self.sample_position_deg,
+            self.drive_current_a,
+            self.frequency_hz,
+            self.x_v,
+            self.y_v,
+            self.amplitude_v,
+            self.phase_deg,
+            self.ratio_db,
+        )
+        if not all(value is None or math.isfinite(value) for value in numeric_values):
+            raise ValueError("Transport reading contains a non-finite value.")

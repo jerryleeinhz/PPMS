@@ -1,30 +1,37 @@
 [runtime]
-simulation = true
+simulation = false
 seed = 1729
-sample_name = "SIMULATED_SAMPLE"
+sample_name = "CHANGE_ME_SAMPLE"
 
 [instruments]
 reference_frequency_hz = 17.777
 series_resistance_ohm = 100000.0
+# These two values are used only by the simulator but remain part of the
+# shared schema so simulation and hardware configurations stay comparable.
 initial_temperature_k = 300.0
 initial_field_t = 0.0
 
 [connections]
+# "default" asks PyVISA to use the installed system VISA implementation,
+# normally NI-VISA on the PPMS computer.
 visa_backend = "default"
 visa_timeout_ms = 5000
-sr830_address = "SIMULATED::SR830"
-sr865a_address = "SIMULATED::SR865A"
-gate_top_address = "SIMULATED::KEITHLEY2400_TOP"
-gate_bottom_address = "SIMULATED::KEITHLEY2400_BOTTOM"
+sr830_address = "CHANGE_ME_SR830_VISA_ADDRESS"
+sr865a_address = "CHANGE_ME_SR865A_VISA_ADDRESS"
+gate_top_address = "CHANGE_ME_TOP_KEITHLEY2400_VISA_ADDRESS"
+gate_bottom_address = "CHANGE_ME_BOTTOM_KEITHLEY2400_VISA_ADDRESS"
+# Conventional same-computer MultiPyVu Client endpoint.
 ppms_host = "127.0.0.1"
 ppms_port = 5000
 
 [safety]
+# SR830 SINE OUT values are RMS volts. The safe idle is not physical zero.
 source_voltage_min_v = 0.004
 source_voltage_max_v = 5.0
 source_safe_idle_voltage_v = 0.004
 source_frequency_min_hz = 0.001
 source_frequency_max_hz = 102000.0
+# Conservative upper bound calculated as voltage / series_resistance_ohm.
 estimated_current_limit_a = 0.00005
 field_abs_limit_t = 2.0
 field_rate_max_t_per_s = 0.01
@@ -49,6 +56,7 @@ field_tolerance_t = 0.001
 source_voltage_tolerance_v = 0.0021
 
 [voltage_sweep]
+# Edit these conservative example amplitudes only after reviewing the wiring.
 start_voltage_v = 0.004
 stop_voltage_v = 0.05
 points = 9
@@ -56,10 +64,11 @@ target_temperature_k = 300.0
 target_field_t = 0.0
 temperature_rate_k_per_min = 1.0
 field_rate_t_per_s = 0.005
-stabilization_timeout_s = 60.0
-stability_poll_s = 0.1
+stabilization_timeout_s = 3600.0
+stability_poll_s = 2.0
 
 [frequency_sweep]
+# Review these setpoints and lock-in time constants before a real run.
 start_frequency_hz = 1.0
 stop_frequency_hz = 100.0
 points = 7
@@ -68,10 +77,11 @@ target_temperature_k = 300.0
 target_field_t = 0.0
 temperature_rate_k_per_min = 1.0
 field_rate_t_per_s = 0.005
-stabilization_timeout_s = 60.0
-stability_poll_s = 0.1
+stabilization_timeout_s = 3600.0
+stability_poll_s = 2.0
 
 [field_sweep]
+# Confirm the intended field direction, endpoints, and sample mounting first.
 start_field_t = -1.0
 stop_field_t = 1.0
 points = 21
@@ -80,10 +90,11 @@ frequency_hz = 17.777
 target_temperature_k = 300.0
 temperature_rate_k_per_min = 1.0
 field_rate_t_per_s = 0.005
-stabilization_timeout_s = 60.0
-stability_poll_s = 0.1
+stabilization_timeout_s = 3600.0
+stability_poll_s = 2.0
 
 [temperature_field_sweep]
+# Review the full grid and expected runtime before a real run.
 start_temperature_k = 295.0
 stop_temperature_k = 300.0
 temperature_points = 2
@@ -94,8 +105,8 @@ source_voltage_v = 0.004
 frequency_hz = 17.777
 temperature_rate_k_per_min = 1.0
 field_rate_t_per_s = 0.005
-stabilization_timeout_s = 60.0
-stability_poll_s = 0.1
+stabilization_timeout_s = 3600.0
+stability_poll_s = 2.0
 
 [data]
-database_path = "../run_data/ppms_control.sqlite"
+database_path = "C:/PPMS_Data/ppms_control.sqlite"
