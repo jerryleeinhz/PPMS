@@ -132,6 +132,7 @@ class TemperatureFieldSweepConfig:
 
 @dataclass(frozen=True)
 class GateSweepConfig:
+    mode: str
     start_top_gate_v: float
     stop_top_gate_v: float
     top_gate_points: int
@@ -393,6 +394,7 @@ def load_config(path: str | Path) -> AppConfig:
         raw,
         "gate_sweep",
         {
+            "mode",
             "start_top_gate_v",
             "stop_top_gate_v",
             "top_gate_points",
@@ -755,6 +757,7 @@ def load_config(path: str | Path) -> AppConfig:
         ),
     )
     gate_sweep = GateSweepConfig(
+        mode=_text(gate_sweep_raw["mode"], "gate_sweep.mode"),
         start_top_gate_v=_number(
             gate_sweep_raw["start_top_gate_v"],
             "gate_sweep.start_top_gate_v",
@@ -998,6 +1001,12 @@ def load_config(path: str | Path) -> AppConfig:
         raise ConfigError("Temperature-field temperature rate exceeds the safety limit.")
     if temperature_field_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
         raise ConfigError("Temperature-field field rate exceeds the safety limit.")
+    if safety.gate_leakage_limit_a >= safety.gate_compliance_limit_a:
+        raise ConfigError(
+            "safety.gate_leakage_limit_a must be below gate_compliance_limit_a."
+        )
+    if gate_sweep.mode not in {"grid", "paired"}:
+        raise ConfigError("gate_sweep.mode must be 'grid' or 'paired'.")
     for label, gate_v in (
         ("start_top_gate_v", gate_sweep.start_top_gate_v),
         ("stop_top_gate_v", gate_sweep.stop_top_gate_v),
@@ -1006,16 +1015,26 @@ def load_config(path: str | Path) -> AppConfig:
     ):
         if abs(gate_v) > safety.gate_voltage_limit_v:
             raise ConfigError(f"gate_sweep.{label} exceeds the gate-voltage limit.")
-    if (
-        gate_sweep.top_gate_points > 1
-        and gate_sweep.start_top_gate_v == gate_sweep.stop_top_gate_v
-    ):
-        raise ConfigError("A multi-point top-gate sweep must contain distinct setpoints.")
-    if (
-        gate_sweep.bottom_gate_points > 1
-        and gate_sweep.start_bottom_gate_v == gate_sweep.stop_bottom_gate_v
-    ):
-        raise ConfigError("A multi-point bottom-gate sweep must contain distinct setpoints.")
+    if gate_sweep.mode == "grid":
+        if (
+            gate_sweep.top_gate_points > 1
+            and gate_sweep.start_top_gate_v == gate_sweep.stop_top_gate_v
+        ):
+            raise ConfigError("A multi-point top-gate sweep must contain distinct setpoints.")
+        if (
+            gate_sweep.bottom_gate_points > 1
+            and gate_sweep.start_bottom_gate_v == gate_sweep.stop_bottom_gate_v
+        ):
+            raise ConfigError("A multi-point bottom-gate sweep must contain distinct setpoints.")
+    else:
+        if gate_sweep.top_gate_points != gate_sweep.bottom_gate_points:
+            raise ConfigError("A paired gate sweep requires equal top/bottom point counts.")
+        if (
+            gate_sweep.top_gate_points > 1
+            and gate_sweep.start_top_gate_v == gate_sweep.stop_top_gate_v
+            and gate_sweep.start_bottom_gate_v == gate_sweep.stop_bottom_gate_v
+        ):
+            raise ConfigError("A multi-point paired gate sweep must move at least one gate.")
     gate_sweep_has_nonzero_voltage = any(
         gate_v != 0.0
         for gate_v in (

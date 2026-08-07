@@ -112,6 +112,9 @@ stability_poll_s = 2.0
 # Safe no-bias placeholder. Replace every gate-sweep value with sample-approved
 # limits before requesting real control.
 [gate_sweep]
+# "grid" maps Vg1 x Vg2. After selecting a physical zero-field line, use
+# "paired" with equal point counts and make both endpoint pairs define the line.
+mode = "grid"
 start_top_gate_v = 0.0
 stop_top_gate_v = 0.0
 top_gate_points = 1

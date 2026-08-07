@@ -361,6 +361,30 @@ class SimulationIntegrationTests(unittest.TestCase):
             station.safe_shutdown()
             bundle.close()
 
+    def test_paired_gate_sweep_changes_both_gates_along_one_line(self) -> None:
+        config = self._config(Path(":memory:"))
+        paired = replace(
+            config.gate_sweep,
+            mode="paired",
+            start_top_gate_v=-1.0,
+            stop_top_gate_v=1.0,
+            top_gate_points=3,
+            start_bottom_gate_v=2.0,
+            stop_bottom_gate_v=-2.0,
+            bottom_gate_points=3,
+        )
+        conditions = gate_sweep_conditions(
+            paired,
+            series_resistance_ohm=config.instruments.series_resistance_ohm,
+        )
+        self.assertEqual(
+            [
+                (condition.gate_top_voltage_v, condition.gate_bottom_voltage_v)
+                for condition in conditions
+            ],
+            [(-1.0, 2.0), (0.0, 0.0), (1.0, -2.0)],
+        )
+
     def test_unlocked_reference_rejects_every_attempt(self) -> None:
         config = self._config(Path(":memory:"))
         bundle = build_simulated_bundle(config)

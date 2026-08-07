@@ -318,28 +318,41 @@ def gate_sweep_conditions(
     *,
     series_resistance_ohm: float,
 ) -> tuple[MeasurementCondition, ...]:
-    if config.top_gate_points == 1:
-        top_gate_voltages = [config.start_top_gate_v]
-    else:
-        top_step = (config.stop_top_gate_v - config.start_top_gate_v) / (
-            config.top_gate_points - 1
-        )
-        top_gate_voltages = [
-            config.start_top_gate_v + index * top_step
-            for index in range(config.top_gate_points)
-        ]
-    if config.bottom_gate_points == 1:
-        bottom_gate_voltages = [config.start_bottom_gate_v]
-    else:
-        bottom_step = (config.stop_bottom_gate_v - config.start_bottom_gate_v) / (
-            config.bottom_gate_points - 1
-        )
-        bottom_gate_voltages = [
-            config.start_bottom_gate_v + index * bottom_step
-            for index in range(config.bottom_gate_points)
-        ]
+    def linear_values(start_v: float, stop_v: float, points: int) -> list[float]:
+        if points == 1:
+            return [start_v]
+        step = (stop_v - start_v) / (points - 1)
+        return [start_v + index * step for index in range(points)]
+
+    top_gate_voltages = linear_values(
+        config.start_top_gate_v,
+        config.stop_top_gate_v,
+        config.top_gate_points,
+    )
+    bottom_gate_voltages = linear_values(
+        config.start_bottom_gate_v,
+        config.stop_bottom_gate_v,
+        config.bottom_gate_points,
+    )
 
     conditions: list[MeasurementCondition] = []
+    if config.mode == "paired":
+        gate_pairs = zip(top_gate_voltages, bottom_gate_voltages, strict=True)
+        for top_gate_v, bottom_gate_v in gate_pairs:
+            conditions.append(
+                MeasurementCondition(
+                    sequence_index=len(conditions),
+                    source_voltage_v=config.source_voltage_v,
+                    estimated_current_a=config.source_voltage_v / series_resistance_ohm,
+                    frequency_hz=config.frequency_hz,
+                    temperature_k=config.target_temperature_k,
+                    field_t=config.target_field_t,
+                    gate_top_voltage_v=top_gate_v,
+                    gate_bottom_voltage_v=bottom_gate_v,
+                )
+            )
+        return tuple(conditions)
+
     for top_index, top_gate_v in enumerate(top_gate_voltages):
         bottom_row = (
             bottom_gate_voltages

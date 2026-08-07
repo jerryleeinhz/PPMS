@@ -165,6 +165,33 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ConfigError, "top-gate sweep.*distinct"):
                 load_config(EXAMPLE_CONFIG)
 
+    def test_unknown_gate_sweep_mode_is_rejected(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            'mode = "grid"',
+            'mode = "diagonal"',
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "mode must be"):
+                load_config(EXAMPLE_CONFIG)
+
+    def test_paired_gate_sweep_requires_equal_point_counts(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            'mode = "grid"',
+            'mode = "paired"',
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "equal top/bottom"):
+                load_config(EXAMPLE_CONFIG)
+
+    def test_gate_leakage_abort_must_precede_hardware_compliance(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            "gate_leakage_limit_a = 1e-9",
+            "gate_leakage_limit_a = 1e-8",
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "below gate_compliance"):
+                load_config(EXAMPLE_CONFIG)
+
 
 if __name__ == "__main__":
     unittest.main()

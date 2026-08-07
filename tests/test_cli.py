@@ -95,6 +95,32 @@ class HardwareDiagnosticCliTests(unittest.TestCase):
             config.gate_sweep.top_gate_points * config.gate_sweep.bottom_gate_points,
         )
 
+    def test_paired_gate_simulation_command_completes(self) -> None:
+        config = load_config(EXAMPLE_CONFIG)
+        paired = replace(
+            config.gate_sweep,
+            mode="paired",
+            top_gate_points=3,
+            bottom_gate_points=3,
+        )
+        config = replace(
+            config,
+            gate_sweep=paired,
+            data=DataConfig(Path(":memory:")),
+        )
+        output = io.StringIO()
+        with patch("ppms_control.cli.load_config", return_value=config):
+            with redirect_stdout(output):
+                exit_code = _simulate(
+                    EXAMPLE_CONFIG,
+                    None,
+                    sweep_kind="gate",
+                )
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["newly_measured_conditions"], 3)
+
     def test_successful_diagnostic_is_audited_and_prints_run_id(self) -> None:
         config = _hardware_config()
         result = DiagnosticResult(

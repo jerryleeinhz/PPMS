@@ -82,6 +82,10 @@ Use the authorized real-control command only after Stages 0 through 2 pass.
 - [ ] Repeat independently for the second gate.
 - [ ] Verify a small two-dimensional snake grid follows adjacent setpoints
   without a full-range bottom-gate jump between top-gate rows.
+- [ ] Record how the zero-field line was identified: capacitance/offset model,
+  independently calibrated endpoints, or a documented experimental criterion.
+- [ ] Configure `mode = "paired"` with equal point counts and verify both gates
+  follow the approved endpoint pairs simultaneously.
 - [ ] Verify normal completion ramps both setpoints to zero and disables both
   outputs; interrupt separately and verify emergency cleanup.
 

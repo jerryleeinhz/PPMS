@@ -99,6 +99,8 @@ stabilization_timeout_s = 60.0
 stability_poll_s = 0.1
 
 [gate_sweep]
+# Change to "paired" with equal top/bottom point counts to test a co-sweep line.
+mode = "grid"
 start_top_gate_v = -1.0
 stop_top_gate_v = 1.0
 top_gate_points = 3

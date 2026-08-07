@@ -147,13 +147,23 @@ diagnostic-run and exact confirmation arguments.
 
 ### Dual-gate SR measurement
 
-`[gate_sweep]` defines independent top- and bottom-gate start, stop, and point
-counts at one fixed temperature, field, SR830 excitation, and frequency. The
-grid uses a snake path so the bottom gate does not jump across its full range
-between adjacent top-gate rows. Every transition is subdivided by
+`[gate_sweep]` defines top- and bottom-gate endpoints at one fixed temperature,
+field, SR830 excitation, and frequency. With `mode = "grid"`, the independent
+point counts form a two-dimensional map; a snake path prevents the bottom gate
+from jumping across its full range between adjacent top-gate rows. After a
+zero-field trajectory has been selected from that map or from an independent
+capacitance calibration, set `mode = "paired"`, use equal top/bottom point
+counts, and make the two endpoint pairs describe that trajectory. The two gate
+setpoints then change together point by point. The software does not infer the
+physical zero-field criterion from resistance alone.
+
+Every transition is subdivided by
 `gate_ramp_step_v`; leakage is checked at every ramp step and again during every
 raw SR sample. `gate_ramp_step_delay_s` controls inter-step delay and
-`gate_settle_s` controls the wait before lock-in acquisition.
+`gate_settle_s` controls the wait before lock-in acquisition. Configuration is
+rejected unless `gate_leakage_limit_a` is strictly below the Keithley
+`gate_compliance_limit_a`, so software abort is requested before the hardware
+compliance boundary.
 
 Run the simulation before considering real control:
 
@@ -183,6 +193,11 @@ including SR830/SR865A X/Y, frequency, harmonic, lock and overload state; both
 Keithley voltage, output, compliance, and measured current; and PPMS
 temperature, field, chamber, status, and stability. Export these records with:
 
+The Keithley current in these rows is gate leakage current. It is not the
+sample transport current and `Vgate / Ileak` is not reported as sample
+resistance. Sample resistance-like values are derived from lock-in voltage
+divided by the configured SR drive-current estimate.
+
 When a Keithley output is off, `gate_*_current_available` is `0`; the adjacent
 current value must not be interpreted as a measurement.
 
@@ -206,6 +221,7 @@ condition, signal, instrument channel, and harmonic. ETO source rows remain
 separate. Phase uses circular statistics, and derived resistance-like columns
 are explicitly named `*_over_drive_current_ohm` because SR current is estimated
 whereas ETO current may be measured.
+
 Gate setpoints are present in accepted-attempt and transport-long exports as
 `gate_top_voltage_v` and `gate_bottom_voltage_v`; summary exports provide the
 corresponding `*_mean` and `*_std` columns.
