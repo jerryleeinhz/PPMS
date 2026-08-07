@@ -31,7 +31,8 @@ ppms_qcodes_control/
 ├── docs/
 │   ├── DESIGN_GOALS.md
 │   ├── HARDWARE_DIAGNOSTICS.md
-│   └── HARDWARE_VALIDATION_CHECKLIST.md
+│   ├── HARDWARE_VALIDATION_CHECKLIST.md
+│   └── SR_DUAL_GATE_TEST_GUIDE.md
 ├── src/ppms_control/
 ├── tests/
 ├── run_data/                 # 被 Git 忽略

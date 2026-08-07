@@ -6,6 +6,9 @@ not imported or modified.
 
 See [docs/DESIGN_GOALS.md](docs/DESIGN_GOALS.md) for the directory map,
 architecture boundaries, design goals, and real-hardware entry criteria.
+For the SR lock-in resistance definition, dual-gate `grid`/`paired` workflow,
+manual TOML parameters, data columns, and a file-by-file testing map, see
+[docs/SR_DUAL_GATE_TEST_GUIDE.md](docs/SR_DUAL_GATE_TEST_GUIDE.md).
 For the current two-backend design, verified ETO format, compliance findings,
 implementation status, and next-chat handoff, read
 [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md) first.

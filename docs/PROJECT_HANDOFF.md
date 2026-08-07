@@ -224,6 +224,9 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 
 ## 7. 关键代码位置
 
+SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动参数和完整文件速查见
+`docs/SR_DUAL_GATE_TEST_GUIDE.md`。
+
 | 文件 | 作用 |
 | --- | --- |
 | `src/ppms_control/models.py` | 旧锁相模型和新的公共`TransportReading` |
