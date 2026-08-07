@@ -11,10 +11,13 @@ from ppms_control.instruments import build_simulated_bundle
 from ppms_control.protocols import (
     field_sweep_conditions,
     frequency_sweep_conditions,
+    gate_sweep_conditions,
     prepare_field_sweep,
+    prepare_gate_sweep,
     prepare_temperature_field_sweep,
     run_field_sweep,
     run_frequency_sweep,
+    run_gate_sweep,
     run_temperature_field_sweep,
     run_voltage_sweep,
     temperature_field_sweep_conditions,
@@ -270,6 +273,90 @@ class SimulationIntegrationTests(unittest.TestCase):
                     {(row["temperature_k"], row["field_t"]) for row in rows},
                     {(condition.temperature_k, condition.field_t) for condition in conditions},
                 )
+        finally:
+            station.safe_shutdown()
+            bundle.close()
+
+    def test_gate_sweep_records_snake_grid_and_returns_gates_to_zero(self) -> None:
+        config = self._config(Path(":memory:"))
+        conditions = gate_sweep_conditions(
+            config.gate_sweep,
+            series_resistance_ohm=config.instruments.series_resistance_ohm,
+        )
+        self.assertEqual(
+            [
+                (condition.gate_top_voltage_v, condition.gate_bottom_voltage_v)
+                for condition in conditions
+            ],
+            [
+                (-1.0, -0.5),
+                (-1.0, 0.5),
+                (0.0, 0.5),
+                (0.0, -0.5),
+                (1.0, -0.5),
+                (1.0, 0.5),
+            ],
+        )
+        self.assertEqual(len({condition.condition_id for condition in conditions}), 6)
+
+        bundle = build_simulated_bundle(config)
+        station = SafeStation(bundle, config)
+        try:
+            with RunStore(":memory:") as store:
+                run_id = store.start_run(
+                    protocol="fixed_environment_gate_sweep",
+                    sample_name=config.runtime.sample_name,
+                    config_json=config.canonical_json(),
+                    station_snapshot_json="{}",
+                )
+                engine = MeasurementEngine(
+                    station,
+                    store,
+                    run_id,
+                    config.acquisition,
+                )
+                prepare_gate_sweep(station, config.gate_sweep)
+                measured = run_gate_sweep(
+                    engine,
+                    station,
+                    store,
+                    run_id,
+                    config.gate_sweep,
+                    series_resistance_ohm=config.instruments.series_resistance_ohm,
+                )
+                self.assertEqual(measured, len(conditions))
+                rows = store._connection.execute(
+                    """
+                    SELECT gate_top_voltage_v, gate_bottom_voltage_v
+                    FROM attempts
+                    WHERE run_id = ? AND accepted = 1
+                    ORDER BY sequence_index
+                    """,
+                    (run_id,),
+                ).fetchall()
+                self.assertEqual(
+                    [(row[0], row[1]) for row in rows],
+                    [
+                        (condition.gate_top_voltage_v, condition.gate_bottom_voltage_v)
+                        for condition in conditions
+                    ],
+                )
+                transport_gates = store._connection.execute(
+                    """
+                    SELECT DISTINCT sequence_index, gate_top_voltage_v,
+                                    gate_bottom_voltage_v
+                    FROM transport_readings
+                    WHERE run_id = ?
+                    ORDER BY sequence_index
+                    """,
+                    (run_id,),
+                ).fetchall()
+                self.assertEqual(len(transport_gates), len(conditions))
+
+            self.assertEqual(float(bundle.gate_top.voltage_v.get()), 0.0)
+            self.assertEqual(float(bundle.gate_bottom.voltage_v.get()), 0.0)
+            self.assertFalse(bool(bundle.gate_top.output_enabled.get()))
+            self.assertFalse(bool(bundle.gate_bottom.output_enabled.get()))
         finally:
             station.safe_shutdown()
             bundle.close()

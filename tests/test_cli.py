@@ -76,6 +76,25 @@ class HardwareDiagnosticCliTests(unittest.TestCase):
             * config.temperature_field_sweep.field_points,
         )
 
+    def test_gate_simulation_command_completes(self) -> None:
+        config = load_config(EXAMPLE_CONFIG)
+        config = replace(config, data=DataConfig(Path(":memory:")))
+        output = io.StringIO()
+        with patch("ppms_control.cli.load_config", return_value=config):
+            with redirect_stdout(output):
+                exit_code = _simulate(
+                    EXAMPLE_CONFIG,
+                    None,
+                    sweep_kind="gate",
+                )
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(
+            payload["newly_measured_conditions"],
+            config.gate_sweep.top_gate_points * config.gate_sweep.bottom_gate_points,
+        )
+
     def test_successful_diagnostic_is_audited_and_prints_run_id(self) -> None:
         config = _hardware_config()
         result = DiagnosticResult(
@@ -139,6 +158,28 @@ class HardwareDiagnosticCliTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(json.loads(output.getvalue())["run_id"], "frequency-run")
+        runner.assert_called_once()
+
+    def test_gate_hardware_command_selects_gate_runner(self) -> None:
+        config = _hardware_config()
+        output = io.StringIO()
+        outcome = HardwareRunOutcome("gate-run", 6, "completed")
+        with patch("ppms_control.cli.load_config", return_value=config):
+            with patch(
+                "ppms_control.cli.run_authorized_gate_sweep",
+                return_value=outcome,
+            ) as runner:
+                with redirect_stdout(output):
+                    exit_code = _run_hardware_command(
+                        EXAMPLE_CONFIG,
+                        diagnostic_run_id="diagnostic-run",
+                        confirmation="I CONFIRM REAL HARDWARE CONTROL",
+                        resume_run_id=None,
+                        sweep_kind="gate",
+                    )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(output.getvalue())["run_id"], "gate-run")
         runner.assert_called_once()
 
     def test_failed_component_returns_three_and_is_still_audited(self) -> None:

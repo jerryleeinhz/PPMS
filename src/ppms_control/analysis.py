@@ -11,6 +11,8 @@ _NUMERIC_FIELDS = (
     "timestamp_s",
     "temperature_k",
     "field_t",
+    "gate_top_voltage_v",
+    "gate_bottom_voltage_v",
     "sample_position_deg",
     "drive_current_a",
     "frequency_hz",

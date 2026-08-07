@@ -187,6 +187,8 @@ Electrical Transport Option, Release 1.2.0 Build 0
 - ETO `.dat`增量跟随读取：延迟未完成的末行、检测截断/已消费内容改写、保存可恢复检查点；
 - ETO新增读数和跟随检查点在同一个SQLite事务中提交，并提供`follow-eto-data`命令。
 - 公共输运长表导出和按观测/信号/谐波汇总的作图就绪CSV；相位采用圆统计，ETO分时源行不配对。
+- 固定温度、磁场和激励下的SR双栅二维网格扫描：蛇形路径、分步斜坡、逐步/逐样本漏电检查、
+  栅压状态核验、断点续跑和结束归零；栅压写入条件ID、attempts和公共输运长表。
 
 ### 6.2 当前SR后端状态
 
@@ -200,6 +202,10 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 每次切换谐波后执行配置的稳定等待，再取得配置数量的平均样本。旧的`attempts`宽表仍保留
 `xx/1ω + xy/3ω`摘要以兼容已有分析；完整六路数据以`instrument_samples`和
 `transport_readings`为准。
+
+栅压扫描由`simulate-gate`和`run-hardware-gate`进入。上下栅分别配置起止点和点数，按
+二维蛇形顺序运行；每个栅压条件继续采集上述六路信号。软件和仿真测试已完成，但真实非零
+栅压尚未在实验设备/样品上验证，必须按`HARDWARE_VALIDATION_CHECKLIST.md`逐级确认。
 
 ### 6.3 当前ETO后端限制
 
@@ -217,7 +223,7 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 | `src/ppms_control/models.py` | 旧锁相模型和新的公共`TransportReading` |
 | `src/ppms_control/eto_data.py` | ETO文件解析、检查和标准化 |
 | `src/ppms_control/store.py` | SQLite，包括`transport_readings` |
-| `src/ppms_control/protocols.py` | 电压、频率、磁场和温度—磁场网格扫描协议 |
+| `src/ppms_control/protocols.py` | 电压、频率、磁场、温度—磁场和双栅网格扫描协议 |
 | `src/ppms_control/acquisition.py` | SR双通道三谐波读取、平均和质量标记 |
 | `src/ppms_control/real_instruments.py` | 真实VISA和MultiPyVu适配器 |
 | `src/ppms_control/hardware_run.py` | 真实SR扫描授权入口 |
@@ -274,8 +280,9 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 3. [完成] 磁场扫描和旋转台角度状态；
 4. [完成] 温度—磁场网格扫描；
 5. [完成] ETO `.dat`增量跟随读取；
-6. [等待实机接口确认] 在确认MultiVu sequence启动/停止/状态接口后实现ETO运行层；
-7. [部分完成] 已增加公共长表和作图就绪汇总CSV；具体论文图版式等待实验图形需求。
+6. [完成软件层，等待实机分级验证] SR双栅二维网格扫描、安全斜坡、漏电联锁和栅压数据导出；
+7. [等待实机接口确认] 在确认MultiVu sequence启动/停止/状态接口后实现ETO运行层；
+8. [部分完成] 已增加公共长表和作图就绪汇总CSV；具体论文图版式等待实验图形需求。
 
 MultiPyVu 3.6.1公开的客户端和命令工厂没有sequence启停命令；当前开发电脑也没有
 DynaCool/MultiVu安装可检查其COM类型库。因此第6项的最小下一步是在PPMS控制电脑上

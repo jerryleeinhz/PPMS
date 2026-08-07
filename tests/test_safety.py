@@ -95,6 +95,77 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(bool(self.bundle.gate_top.output_enabled.get()))
         self.assertFalse(bool(self.bundle.gate_bottom.output_enabled.get()))
 
+    def test_gate_ramp_limits_every_voltage_step(self) -> None:
+        self.station.set_temperature(10.0, 1.0)
+        setpoints: list[float] = []
+        original = self.bundle.gate_top.set_voltage
+
+        def record_setpoint(voltage_v: float) -> None:
+            setpoints.append(voltage_v)
+            original(voltage_v)
+
+        with patch.object(self.bundle.gate_top, "set_voltage", side_effect=record_setpoint):
+            self.station.ramp_gates(
+                0.55,
+                0.0,
+                max_step_v=0.2,
+                step_delay_s=0.0,
+            )
+
+        previous = 0.0
+        for setpoint in setpoints:
+            self.assertLessEqual(abs(setpoint - previous), 0.2)
+            previous = setpoint
+        self.assertAlmostEqual(setpoints[-1], 0.55)
+
+    def test_gate_ramp_ignores_stale_setpoint_when_output_is_off(self) -> None:
+        self.station.set_temperature(10.0, 1.0)
+        self.bundle.gate_top.set_voltage(5.0)
+        self.bundle.gate_top.set_output(False)
+        setpoints: list[float] = []
+        original = self.bundle.gate_top.set_voltage
+
+        def record_setpoint(voltage_v: float) -> None:
+            setpoints.append(voltage_v)
+            original(voltage_v)
+
+        with patch.object(self.bundle.gate_top, "set_voltage", side_effect=record_setpoint):
+            self.station.ramp_gates(
+                0.2,
+                0.0,
+                max_step_v=0.1,
+                step_delay_s=0.0,
+            )
+
+        self.assertEqual(setpoints, [0.0, 0.1, 0.2])
+
+    def test_gate_leakage_violation_disables_both_outputs(self) -> None:
+        self.station.set_temperature(10.0, 1.0)
+        self.bundle.gate_top._leakage_slope_a_per_v = 2e-8
+        with self.assertRaisesRegex(SafetyViolation, "Gate leakage"):
+            self.station.set_gates(0.1, 0.0)
+        self.assertFalse(bool(self.bundle.gate_top.output_enabled.get()))
+        self.assertFalse(bool(self.bundle.gate_bottom.output_enabled.get()))
+
+    def test_gate_leakage_during_acquisition_fails_closed(self) -> None:
+        self.station.set_temperature(10.0, 1.0)
+        self.station.set_gates(0.1, 0.0)
+        self.bundle.gate_top._leakage_slope_a_per_v = 2e-8
+        with self.assertRaisesRegex(SafetyViolation, "top-gate leakage"):
+            self.station.verify_gate_state(0.1, 0.0)
+        self.assertFalse(bool(self.bundle.gate_top.output_enabled.get()))
+        self.assertFalse(bool(self.bundle.gate_bottom.output_enabled.get()))
+
+    def test_temperature_crossing_gate_limit_fails_closed(self) -> None:
+        self.station.set_temperature(10.0, 1.0)
+        self.station.set_gates(0.1, 0.0)
+        self.bundle.ppms.temperature_k.set(
+            self.config.safety.gate_temperature_limit_k + 0.1
+        )
+        with self.assertRaisesRegex(SafetyViolation, "temperature exceeds"):
+            self.station.verify_gate_state(0.1, 0.0)
+        self.assertFalse(bool(self.bundle.gate_top.output_enabled.get()))
+
     def test_sr830_is_both_excitation_source_and_first_harmonic_lockin(self) -> None:
         self.assertIs(self.bundle.excitation, self.bundle.sr830)
         self.station.set_excitation_voltage(0.05)

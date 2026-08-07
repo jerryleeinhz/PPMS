@@ -70,12 +70,20 @@ Use the authorized real-control command only after Stages 0 through 2 pass.
 ## Stage 4 — Keithley gate control
 
 - [ ] Use a dummy load or disconnected device first.
+- [ ] `simulate-gate` completes with the exact proposed scan geometry.
+- [ ] Top/bottom start, stop, point count, ramp step, inter-step delay, and
+  settling time have sample-specific approval.
+- [ ] The target temperature is below the approved gate-temperature limit.
 - [ ] Confirm voltage-source/current-sense mode and compliance.
 - [ ] Enable one gate at a very small voltage.
 - [ ] Compare front-panel voltage and measured leakage with software values.
 - [ ] Verify over-leakage causes excitation and both gates to retreat.
 - [ ] Inject/trigger a software exception and verify both outputs turn OFF.
 - [ ] Repeat independently for the second gate.
+- [ ] Verify a small two-dimensional snake grid follows adjacent setpoints
+  without a full-range bottom-gate jump between top-gate rows.
+- [ ] Verify normal completion ramps both setpoints to zero and disables both
+  outputs; interrupt separately and verify emergency cleanup.
 
 ## Stage 5 — excitation control
 
@@ -107,6 +115,8 @@ Use the authorized real-control command only after Stages 0 through 2 pass.
 - [ ] Interrupt and resume the run; accepted conditions are not repeated.
 - [ ] Validate voltage, frequency, field, and temperature-field protocols
   separately before using their full configured ranges.
+- [ ] Validate the dual-gate protocol first at zero bias, then one gate at a
+  time, and only then with the approved two-dimensional range.
 - [ ] Confirm normal completion and forced failure both execute cleanup.
 - [ ] Export CSV and compare it with the accepted rows in SQLite.
 - [ ] Archive the closed database, configuration, checklist, and Git commit.

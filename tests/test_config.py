@@ -34,6 +34,10 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.voltage_sweep.points, 9)
         self.assertEqual(config.safety.source_safe_idle_voltage_v, 0.004)
         self.assertEqual(config.frequency_sweep.points, 7)
+        self.assertEqual(
+            config.gate_sweep.top_gate_points * config.gate_sweep.bottom_gate_points,
+            6,
+        )
 
     def test_unknown_field_is_rejected(self) -> None:
         text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
@@ -132,6 +136,33 @@ class ConfigTests(unittest.TestCase):
                 ConfigError,
                 "temperature_field_sweep.start_temperature_k",
             ):
+                load_config(EXAMPLE_CONFIG)
+
+    def test_gate_sweep_outside_voltage_limit_is_rejected(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            "stop_top_gate_v = 1.0",
+            "stop_top_gate_v = 11.0",
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "stop_top_gate_v"):
+                load_config(EXAMPLE_CONFIG)
+
+    def test_nonzero_gate_sweep_above_temperature_limit_is_rejected(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            "target_temperature_k = 10.0",
+            "target_temperature_k = 21.0",
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "gate-temperature limit"):
+                load_config(EXAMPLE_CONFIG)
+
+    def test_duplicate_top_gate_setpoints_are_rejected(self) -> None:
+        text = EXAMPLE_CONFIG.read_text(encoding="utf-8").replace(
+            "stop_top_gate_v = 1.0",
+            "stop_top_gate_v = -1.0",
+        )
+        with patch.object(Path, "read_text", return_value=text):
+            with self.assertRaisesRegex(ConfigError, "top-gate sweep.*distinct"):
                 load_config(EXAMPLE_CONFIG)
 
 

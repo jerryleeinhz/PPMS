@@ -15,7 +15,7 @@ Current milestone:
 - strict TOML configuration;
 - QCoDeS-backed simulated SR830, SR865A, two Keithley 2400 SMUs, and DynaCool;
 - a fail-closed `SafeStation` facade;
-- voltage, frequency, magnetic-field, and temperature-field-grid protocols;
+- voltage, frequency, magnetic-field, temperature-field-grid, and dual-gate-grid protocols;
 - sequential `1w -> 2w -> 3w` acquisition from both SR830 (`xx`) and SR865A (`xy`);
 - averaged six-signal readings with per-harmonic quality flags and retries;
 - per-sample SR830, SR865A, SMU, and PPMS readbacks in SQLite;
@@ -25,7 +25,7 @@ Current milestone:
 - simulation measurement CLI and CSV export;
 - strict real-hardware endpoint configuration;
 - read-only VISA and MultiPyVu hardware diagnostics;
-- authorized real-hardware commands for all four SR protocols;
+- authorized real-hardware commands for all five SR protocols;
 - a strict parser and inspection command for MultiVu ETO 1.2 `.dat` files;
 - restart-safe incremental ETO file ingestion with atomic SQLite checkpoints.
 
@@ -50,6 +50,7 @@ From this directory in PowerShell:
 & 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate-frequency config\simulation.toml
 & 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate-field config\simulation.toml
 & 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate-temperature-field config\simulation.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate-gate config\simulation.toml
 ```
 
 The editable-install step is required once for this `src/`-layout project. It
@@ -141,8 +142,41 @@ authorization.
 
 The corresponding commands for the other configured protocols are
 `run-hardware-frequency`, `run-hardware-field`, and
-`run-hardware-temperature-field`; they use the same diagnostic-run and exact
-confirmation arguments.
+`run-hardware-temperature-field`, and `run-hardware-gate`; they use the same
+diagnostic-run and exact confirmation arguments.
+
+### Dual-gate SR measurement
+
+`[gate_sweep]` defines independent top- and bottom-gate start, stop, and point
+counts at one fixed temperature, field, SR830 excitation, and frequency. The
+grid uses a snake path so the bottom gate does not jump across its full range
+between adjacent top-gate rows. Every transition is subdivided by
+`gate_ramp_step_v`; leakage is checked at every ramp step and again during every
+raw SR sample. `gate_ramp_step_delay_s` controls inter-step delay and
+`gate_settle_s` controls the wait before lock-in acquisition.
+
+Run the simulation before considering real control:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m ppms_control simulate-gate config\simulation.toml
+```
+
+For real hardware, first replace the zero-bias placeholders in
+`config/hardware.local.toml` with sample-approved limits, complete the staged
+Keithley checks in the hardware validation checklist, and obtain a successful
+diagnostic `run_id`. Then use:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m ppms_control run-hardware-gate config\hardware.local.toml `
+  --diagnostic-run-id '<DIAGNOSTIC_RUN_ID>' `
+  --confirm 'I CONFIRM REAL HARDWARE CONTROL'
+```
+
+Normal completion ramps both gates back to zero. Any leakage, output-state,
+readback, driver, acquisition, or interruption failure enters the common
+fail-closed cleanup, which requests the SR830 safe-idle amplitude and zero/off
+for both Keithleys. The configured limits are software interlocks, not a
+substitute for front-panel compliance and sample-specific approval.
 
 Every raw average sample is committed immediately to `instrument_samples`,
 including SR830/SR865A X/Y, frequency, harmonic, lock and overload state; both
@@ -172,3 +206,6 @@ condition, signal, instrument channel, and harmonic. ETO source rows remain
 separate. Phase uses circular statistics, and derived resistance-like columns
 are explicitly named `*_over_drive_current_ohm` because SR current is estimated
 whereas ETO current may be measured.
+Gate setpoints are present in accepted-attempt and transport-long exports as
+`gate_top_voltage_v` and `gate_bottom_voltage_v`; summary exports provide the
+corresponding `*_mean` and `*_std` columns.

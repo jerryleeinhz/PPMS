@@ -9,6 +9,7 @@ from ppms_control.config import load_config
 from ppms_control.hardware_run import (
     run_authorized_field_sweep,
     run_authorized_frequency_sweep,
+    run_authorized_gate_sweep,
     run_authorized_temperature_field_sweep,
     run_authorized_voltage_sweep,
 )
@@ -144,6 +145,30 @@ class AuthorizedHardwareRunTests(unittest.TestCase):
             expected_points = (
                 config.temperature_field_sweep.temperature_points
                 * config.temperature_field_sweep.field_points
+            )
+            self.assertEqual(store.run_status(outcome.run_id), "completed")
+            self.assertEqual(
+                store.attempt_count(outcome.run_id, accepted=True),
+                expected_points,
+            )
+
+        self.assertEqual(outcome.newly_measured_conditions, expected_points)
+
+    def test_matching_diagnostic_runs_authorized_gate_sweep(self) -> None:
+        config = _hardware_config()
+
+        with RunStore(":memory:") as store:
+            diagnostic_run_id = _diagnostic_run(store, config)
+            outcome = run_authorized_gate_sweep(
+                config,
+                store,
+                confirmation=REAL_CONTROL_CONFIRMATION,
+                diagnostic_run_id=diagnostic_run_id,
+                bundle_factory=build_simulated_bundle,
+            )
+            expected_points = (
+                config.gate_sweep.top_gate_points
+                * config.gate_sweep.bottom_gate_points
             )
             self.assertEqual(store.run_status(outcome.run_id), "completed")
             self.assertEqual(

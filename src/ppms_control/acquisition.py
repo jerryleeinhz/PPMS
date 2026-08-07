@@ -91,6 +91,8 @@ def _sr_transport_readings(
             timestamp_s=timestamp_s,
             temperature_k=state.ppms.temperature_k,
             field_t=state.ppms.field_t,
+            gate_top_voltage_v=condition.gate_top_voltage_v,
+            gate_bottom_voltage_v=condition.gate_bottom_voltage_v,
             sample_position_deg=state.ppms.sample_position_deg,
             drive_current_a=condition.estimated_current_a,
             frequency_hz=reading.frequency_hz,
@@ -233,6 +235,11 @@ class MeasurementEngine:
                                 lockins=lockins,
                                 state=state,
                             ),
+                        )
+                        self._station.verify_gate_state(
+                            condition.gate_top_voltage_v,
+                            condition.gate_bottom_voltage_v,
+                            state,
                         )
                         for transport_reading in _sr_transport_readings(
                             condition,

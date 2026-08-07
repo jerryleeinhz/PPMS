@@ -11,10 +11,12 @@ from ppms_control.instruments import InstrumentBundle
 from ppms_control.protocols import (
     prepare_field_sweep,
     prepare_frequency_sweep,
+    prepare_gate_sweep,
     prepare_temperature_field_sweep,
     prepare_voltage_sweep,
     run_field_sweep,
     run_frequency_sweep,
+    run_gate_sweep,
     run_temperature_field_sweep,
     run_voltage_sweep,
 )
@@ -123,6 +125,26 @@ def run_authorized_temperature_field_sweep(
     )
 
 
+def run_authorized_gate_sweep(
+    config: AppConfig,
+    store: RunStore,
+    *,
+    confirmation: str,
+    diagnostic_run_id: str,
+    resume_run_id: str | None = None,
+    bundle_factory: BundleFactory = _default_bundle_factory,
+) -> HardwareRunOutcome:
+    return _run_authorized_sweep(
+        config,
+        store,
+        confirmation=confirmation,
+        diagnostic_run_id=diagnostic_run_id,
+        resume_run_id=resume_run_id,
+        bundle_factory=bundle_factory,
+        sweep_kind="gate",
+    )
+
+
 def _run_authorized_sweep(
     config: AppConfig,
     store: RunStore,
@@ -142,6 +164,8 @@ def _run_authorized_sweep(
         protocol = "authorized_hardware_field_sweep"
     elif sweep_kind == "temperature_field":
         protocol = "authorized_hardware_temperature_field_sweep"
+    elif sweep_kind == "gate":
+        protocol = "authorized_hardware_gate_sweep"
     else:
         raise ValueError(f"Unsupported hardware sweep: {sweep_kind}")
     authorization = authorize_real_control(
@@ -212,7 +236,7 @@ def _run_authorized_sweep(
                 config.field_sweep,
                 series_resistance_ohm=config.instruments.series_resistance_ohm,
             )
-        else:
+        elif sweep_kind == "temperature_field":
             prepare_temperature_field_sweep(
                 station,
                 config.temperature_field_sweep,
@@ -223,6 +247,16 @@ def _run_authorized_sweep(
                 store,
                 run_id,
                 config.temperature_field_sweep,
+                series_resistance_ohm=config.instruments.series_resistance_ohm,
+            )
+        else:
+            prepare_gate_sweep(station, config.gate_sweep)
+            measured = run_gate_sweep(
+                engine,
+                station,
+                store,
+                run_id,
+                config.gate_sweep,
                 series_resistance_ohm=config.instruments.series_resistance_ohm,
             )
         terminal_status = "completed"

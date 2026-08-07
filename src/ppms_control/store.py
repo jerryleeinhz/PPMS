@@ -70,6 +70,8 @@ class RunStore:
                 source_voltage_v REAL,
                 estimated_current_a REAL,
                 source_frequency_hz REAL,
+                gate_top_voltage_v REAL,
+                gate_bottom_voltage_v REAL,
                 temperature_k REAL NOT NULL,
                 field_t REAL NOT NULL,
                 xx_x_v REAL,
@@ -152,6 +154,8 @@ class RunStore:
                 timestamp_s REAL NOT NULL,
                 temperature_k REAL NOT NULL,
                 field_t REAL NOT NULL,
+                gate_top_voltage_v REAL,
+                gate_bottom_voltage_v REAL,
                 sample_position_deg REAL,
                 drive_current_a REAL,
                 frequency_hz REAL,
@@ -192,6 +196,10 @@ class RunStore:
             self._connection.execute("ALTER TABLE attempts ADD COLUMN estimated_current_a REAL")
         if "source_frequency_hz" not in attempt_columns:
             self._connection.execute("ALTER TABLE attempts ADD COLUMN source_frequency_hz REAL")
+        if "gate_top_voltage_v" not in attempt_columns:
+            self._connection.execute("ALTER TABLE attempts ADD COLUMN gate_top_voltage_v REAL")
+        if "gate_bottom_voltage_v" not in attempt_columns:
+            self._connection.execute("ALTER TABLE attempts ADD COLUMN gate_bottom_voltage_v REAL")
         sample_columns = {
             str(row[1])
             for row in self._connection.execute("PRAGMA table_info(instrument_samples)")
@@ -223,6 +231,18 @@ class RunStore:
         if "ppms_position_status" not in sample_columns:
             self._connection.execute(
                 "ALTER TABLE instrument_samples ADD COLUMN ppms_position_status TEXT"
+            )
+        transport_columns = {
+            str(row[1])
+            for row in self._connection.execute("PRAGMA table_info(transport_readings)")
+        }
+        if "gate_top_voltage_v" not in transport_columns:
+            self._connection.execute(
+                "ALTER TABLE transport_readings ADD COLUMN gate_top_voltage_v REAL"
+            )
+        if "gate_bottom_voltage_v" not in transport_columns:
+            self._connection.execute(
+                "ALTER TABLE transport_readings ADD COLUMN gate_bottom_voltage_v REAL"
             )
         self._connection.commit()
 
@@ -325,11 +345,11 @@ class RunStore:
             INSERT INTO attempts(
                 run_id, condition_id, sequence_index, attempt_index,
                 current_a, source_voltage_v, estimated_current_a, source_frequency_hz,
-                temperature_k, field_t,
+                gate_top_voltage_v, gate_bottom_voltage_v, temperature_k, field_t,
                 xx_x_v, xx_y_v, xx_x_std_v, xx_y_std_v, xx_frequency_hz,
                 xy_x_v, xy_y_v, xy_x_std_v, xy_y_std_v, xy_frequency_hz,
                 accepted, flags_json, error, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -340,6 +360,8 @@ class RunStore:
                 result.condition.source_voltage_v,
                 result.condition.estimated_current_a,
                 result.condition.frequency_hz,
+                result.condition.gate_top_voltage_v,
+                result.condition.gate_bottom_voltage_v,
                 result.condition.temperature_k,
                 result.condition.field_t,
                 reading.xx_x_v,
@@ -441,12 +463,13 @@ class RunStore:
             """
             INSERT INTO transport_readings(
                 run_id, sequence_index, backend, signal, instrument_channel, harmonic,
-                timestamp_s, temperature_k, field_t, sample_position_deg,
+                timestamp_s, temperature_k, field_t,
+                gate_top_voltage_v, gate_bottom_voltage_v, sample_position_deg,
                 drive_current_a, frequency_hz, x_v, y_v, amplitude_v, phase_deg,
                 ratio_db, phase_resolved, source_row, comment, status_code,
                 quality_flags_json, created_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """,
             (
@@ -459,6 +482,8 @@ class RunStore:
                 reading.timestamp_s,
                 reading.temperature_k,
                 reading.field_t,
+                reading.gate_top_voltage_v,
+                reading.gate_bottom_voltage_v,
                 reading.sample_position_deg,
                 reading.drive_current_a,
                 reading.frequency_hz,
@@ -602,7 +627,7 @@ class RunStore:
         rows = self._connection.execute(
             """
             SELECT condition_id, sequence_index, source_voltage_v, estimated_current_a,
-                   source_frequency_hz,
+                   source_frequency_hz, gate_top_voltage_v, gate_bottom_voltage_v,
                    temperature_k, field_t,
                    xx_x_v, xx_y_v, xx_x_std_v, xx_y_std_v, xx_frequency_hz,
                    xy_x_v, xy_y_v, xy_x_std_v, xy_y_std_v, xy_frequency_hz,
@@ -654,7 +679,8 @@ class RunStore:
             """
             SELECT reading_id, run_id, sequence_index, backend, signal,
                    instrument_channel, harmonic, timestamp_s, temperature_k,
-                   field_t, sample_position_deg, drive_current_a, frequency_hz,
+                   field_t, gate_top_voltage_v, gate_bottom_voltage_v,
+                   sample_position_deg, drive_current_a, frequency_hz,
                    x_v, y_v, amplitude_v, phase_deg, ratio_db, phase_resolved,
                    CASE
                        WHEN drive_current_a IS NOT NULL AND drive_current_a != 0
@@ -704,7 +730,8 @@ class RunStore:
             """
             SELECT reading_id, sequence_index, backend, signal,
                    instrument_channel, harmonic, timestamp_s, temperature_k,
-                   field_t, sample_position_deg, drive_current_a, frequency_hz,
+                   field_t, gate_top_voltage_v, gate_bottom_voltage_v,
+                   sample_position_deg, drive_current_a, frequency_hz,
                    x_v, y_v, amplitude_v, phase_deg, ratio_db, phase_resolved,
                    source_row, comment, status_code, quality_flags_json
             FROM transport_readings

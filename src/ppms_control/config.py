@@ -70,6 +70,7 @@ class AcquisitionConfig:
     temperature_tolerance_k: float
     field_tolerance_t: float
     source_voltage_tolerance_v: float
+    gate_voltage_tolerance_v: float
 
 
 @dataclass(frozen=True)
@@ -130,6 +131,27 @@ class TemperatureFieldSweepConfig:
 
 
 @dataclass(frozen=True)
+class GateSweepConfig:
+    start_top_gate_v: float
+    stop_top_gate_v: float
+    top_gate_points: int
+    start_bottom_gate_v: float
+    stop_bottom_gate_v: float
+    bottom_gate_points: int
+    source_voltage_v: float
+    frequency_hz: float
+    target_temperature_k: float
+    target_field_t: float
+    temperature_rate_k_per_min: float
+    field_rate_t_per_s: float
+    gate_ramp_step_v: float
+    gate_ramp_step_delay_s: float
+    gate_settle_s: float
+    stabilization_timeout_s: float
+    stability_poll_s: float
+
+
+@dataclass(frozen=True)
 class DataConfig:
     database_path: Path
 
@@ -145,6 +167,7 @@ class AppConfig:
     frequency_sweep: FrequencySweepConfig
     field_sweep: FieldSweepConfig
     temperature_field_sweep: TemperatureFieldSweepConfig
+    gate_sweep: GateSweepConfig
     data: DataConfig
 
     def canonical_json(self) -> str:
@@ -161,6 +184,7 @@ _ROOT_KEYS = {
     "frequency_sweep",
     "field_sweep",
     "temperature_field_sweep",
+    "gate_sweep",
     "data",
 }
 
@@ -297,6 +321,7 @@ def load_config(path: str | Path) -> AppConfig:
             "temperature_tolerance_k",
             "field_tolerance_t",
             "source_voltage_tolerance_v",
+            "gate_voltage_tolerance_v",
         },
     )
     sweep_raw = _section(
@@ -360,6 +385,29 @@ def load_config(path: str | Path) -> AppConfig:
             "frequency_hz",
             "temperature_rate_k_per_min",
             "field_rate_t_per_s",
+            "stabilization_timeout_s",
+            "stability_poll_s",
+        },
+    )
+    gate_sweep_raw = _section(
+        raw,
+        "gate_sweep",
+        {
+            "start_top_gate_v",
+            "stop_top_gate_v",
+            "top_gate_points",
+            "start_bottom_gate_v",
+            "stop_bottom_gate_v",
+            "bottom_gate_points",
+            "source_voltage_v",
+            "frequency_hz",
+            "target_temperature_k",
+            "target_field_t",
+            "temperature_rate_k_per_min",
+            "field_rate_t_per_s",
+            "gate_ramp_step_v",
+            "gate_ramp_step_delay_s",
+            "gate_settle_s",
             "stabilization_timeout_s",
             "stability_poll_s",
         },
@@ -508,6 +556,11 @@ def load_config(path: str | Path) -> AppConfig:
         source_voltage_tolerance_v=_number(
             acquisition_raw["source_voltage_tolerance_v"],
             "acquisition.source_voltage_tolerance_v",
+            nonnegative=True,
+        ),
+        gate_voltage_tolerance_v=_number(
+            acquisition_raw["gate_voltage_tolerance_v"],
+            "acquisition.gate_voltage_tolerance_v",
             nonnegative=True,
         ),
     )
@@ -701,6 +754,87 @@ def load_config(path: str | Path) -> AppConfig:
             nonnegative=True,
         ),
     )
+    gate_sweep = GateSweepConfig(
+        start_top_gate_v=_number(
+            gate_sweep_raw["start_top_gate_v"],
+            "gate_sweep.start_top_gate_v",
+        ),
+        stop_top_gate_v=_number(
+            gate_sweep_raw["stop_top_gate_v"],
+            "gate_sweep.stop_top_gate_v",
+        ),
+        top_gate_points=_integer(
+            gate_sweep_raw["top_gate_points"],
+            "gate_sweep.top_gate_points",
+            minimum=1,
+        ),
+        start_bottom_gate_v=_number(
+            gate_sweep_raw["start_bottom_gate_v"],
+            "gate_sweep.start_bottom_gate_v",
+        ),
+        stop_bottom_gate_v=_number(
+            gate_sweep_raw["stop_bottom_gate_v"],
+            "gate_sweep.stop_bottom_gate_v",
+        ),
+        bottom_gate_points=_integer(
+            gate_sweep_raw["bottom_gate_points"],
+            "gate_sweep.bottom_gate_points",
+            minimum=1,
+        ),
+        source_voltage_v=_number(
+            gate_sweep_raw["source_voltage_v"],
+            "gate_sweep.source_voltage_v",
+            nonnegative=True,
+        ),
+        frequency_hz=_number(
+            gate_sweep_raw["frequency_hz"],
+            "gate_sweep.frequency_hz",
+            positive=True,
+        ),
+        target_temperature_k=_number(
+            gate_sweep_raw["target_temperature_k"],
+            "gate_sweep.target_temperature_k",
+        ),
+        target_field_t=_number(
+            gate_sweep_raw["target_field_t"],
+            "gate_sweep.target_field_t",
+        ),
+        temperature_rate_k_per_min=_number(
+            gate_sweep_raw["temperature_rate_k_per_min"],
+            "gate_sweep.temperature_rate_k_per_min",
+            positive=True,
+        ),
+        field_rate_t_per_s=_number(
+            gate_sweep_raw["field_rate_t_per_s"],
+            "gate_sweep.field_rate_t_per_s",
+            positive=True,
+        ),
+        gate_ramp_step_v=_number(
+            gate_sweep_raw["gate_ramp_step_v"],
+            "gate_sweep.gate_ramp_step_v",
+            positive=True,
+        ),
+        gate_ramp_step_delay_s=_number(
+            gate_sweep_raw["gate_ramp_step_delay_s"],
+            "gate_sweep.gate_ramp_step_delay_s",
+            nonnegative=True,
+        ),
+        gate_settle_s=_number(
+            gate_sweep_raw["gate_settle_s"],
+            "gate_sweep.gate_settle_s",
+            nonnegative=True,
+        ),
+        stabilization_timeout_s=_number(
+            gate_sweep_raw["stabilization_timeout_s"],
+            "gate_sweep.stabilization_timeout_s",
+            positive=True,
+        ),
+        stability_poll_s=_number(
+            gate_sweep_raw["stability_poll_s"],
+            "gate_sweep.stability_poll_s",
+            nonnegative=True,
+        ),
+    )
     database_value = _text(data_raw["database_path"], "data.database_path")
     database_path = Path(database_value)
     if not database_path.is_absolute():
@@ -864,6 +998,67 @@ def load_config(path: str | Path) -> AppConfig:
         raise ConfigError("Temperature-field temperature rate exceeds the safety limit.")
     if temperature_field_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
         raise ConfigError("Temperature-field field rate exceeds the safety limit.")
+    for label, gate_v in (
+        ("start_top_gate_v", gate_sweep.start_top_gate_v),
+        ("stop_top_gate_v", gate_sweep.stop_top_gate_v),
+        ("start_bottom_gate_v", gate_sweep.start_bottom_gate_v),
+        ("stop_bottom_gate_v", gate_sweep.stop_bottom_gate_v),
+    ):
+        if abs(gate_v) > safety.gate_voltage_limit_v:
+            raise ConfigError(f"gate_sweep.{label} exceeds the gate-voltage limit.")
+    if (
+        gate_sweep.top_gate_points > 1
+        and gate_sweep.start_top_gate_v == gate_sweep.stop_top_gate_v
+    ):
+        raise ConfigError("A multi-point top-gate sweep must contain distinct setpoints.")
+    if (
+        gate_sweep.bottom_gate_points > 1
+        and gate_sweep.start_bottom_gate_v == gate_sweep.stop_bottom_gate_v
+    ):
+        raise ConfigError("A multi-point bottom-gate sweep must contain distinct setpoints.")
+    gate_sweep_has_nonzero_voltage = any(
+        gate_v != 0.0
+        for gate_v in (
+            gate_sweep.start_top_gate_v,
+            gate_sweep.stop_top_gate_v,
+            gate_sweep.start_bottom_gate_v,
+            gate_sweep.stop_bottom_gate_v,
+        )
+    )
+    if not (
+        safety.temperature_min_k
+        <= gate_sweep.target_temperature_k
+        <= safety.temperature_max_k
+    ):
+        raise ConfigError("Gate-sweep target temperature is outside the safety range.")
+    if (
+        gate_sweep_has_nonzero_voltage
+        and gate_sweep.target_temperature_k > safety.gate_temperature_limit_k
+    ):
+        raise ConfigError("Non-zero gate sweeps must stay below the gate-temperature limit.")
+    if abs(gate_sweep.target_field_t) > safety.field_abs_limit_t:
+        raise ConfigError("Gate-sweep target field exceeds the safety limit.")
+    if not (
+        safety.source_voltage_min_v
+        <= gate_sweep.source_voltage_v
+        <= safety.source_voltage_max_v
+    ):
+        raise ConfigError("Gate-sweep source voltage is outside the source voltage range.")
+    if (
+        gate_sweep.source_voltage_v / instruments.series_resistance_ohm
+        > safety.estimated_current_limit_a
+    ):
+        raise ConfigError("Gate-sweep source voltage exceeds the estimated current limit.")
+    if not (
+        safety.source_frequency_min_hz
+        <= gate_sweep.frequency_hz
+        <= safety.source_frequency_max_hz
+    ):
+        raise ConfigError("Gate-sweep frequency is outside the source frequency range.")
+    if gate_sweep.temperature_rate_k_per_min > safety.temperature_rate_max_k_per_min:
+        raise ConfigError("Gate-sweep temperature rate exceeds the safety limit.")
+    if gate_sweep.field_rate_t_per_s > safety.field_rate_max_t_per_s:
+        raise ConfigError("Gate-sweep field rate exceeds the safety limit.")
     if not safety.temperature_min_k <= instruments.initial_temperature_k <= safety.temperature_max_k:
         raise ConfigError("Initial simulated temperature is outside the safety range.")
     if abs(instruments.initial_field_t) > safety.field_abs_limit_t:
@@ -900,5 +1095,6 @@ def load_config(path: str | Path) -> AppConfig:
         frequency_sweep,
         field_sweep,
         temperature_field_sweep,
+        gate_sweep,
         data,
     )

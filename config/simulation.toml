@@ -47,6 +47,7 @@ noise_limit_v = 1e-6
 temperature_tolerance_k = 0.2
 field_tolerance_t = 0.001
 source_voltage_tolerance_v = 0.0021
+gate_voltage_tolerance_v = 1e-6
 
 [voltage_sweep]
 start_voltage_v = 0.004
@@ -94,6 +95,25 @@ source_voltage_v = 0.004
 frequency_hz = 17.777
 temperature_rate_k_per_min = 1.0
 field_rate_t_per_s = 0.005
+stabilization_timeout_s = 60.0
+stability_poll_s = 0.1
+
+[gate_sweep]
+start_top_gate_v = -1.0
+stop_top_gate_v = 1.0
+top_gate_points = 3
+start_bottom_gate_v = -0.5
+stop_bottom_gate_v = 0.5
+bottom_gate_points = 2
+source_voltage_v = 0.004
+frequency_hz = 17.777
+target_temperature_k = 10.0
+target_field_t = 0.0
+temperature_rate_k_per_min = 1.0
+field_rate_t_per_s = 0.005
+gate_ramp_step_v = 0.25
+gate_ramp_step_delay_s = 0.0
+gate_settle_s = 0.0
 stabilization_timeout_s = 60.0
 stability_poll_s = 0.1
 

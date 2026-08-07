@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import time
+
 from ppms_control.acquisition import MeasurementEngine
 from ppms_control.config import (
     FieldSweepConfig,
     FrequencySweepConfig,
+    GateSweepConfig,
     TemperatureFieldSweepConfig,
     VoltageSweepConfig,
 )
@@ -292,4 +295,105 @@ def run_temperature_field_sweep(
         )
         engine.acquire(condition)
         measured += 1
+    return measured
+
+
+def prepare_gate_sweep(station: SafeStation, config: GateSweepConfig) -> None:
+    station.set_gates(0.0, 0.0)
+    station.set_temperature(
+        config.target_temperature_k,
+        config.temperature_rate_k_per_min,
+    )
+    station.set_field(config.target_field_t, config.field_rate_t_per_s)
+    station.wait_for_environment(
+        config.target_temperature_k,
+        config.target_field_t,
+        timeout_s=config.stabilization_timeout_s,
+        poll_s=config.stability_poll_s,
+    )
+
+
+def gate_sweep_conditions(
+    config: GateSweepConfig,
+    *,
+    series_resistance_ohm: float,
+) -> tuple[MeasurementCondition, ...]:
+    if config.top_gate_points == 1:
+        top_gate_voltages = [config.start_top_gate_v]
+    else:
+        top_step = (config.stop_top_gate_v - config.start_top_gate_v) / (
+            config.top_gate_points - 1
+        )
+        top_gate_voltages = [
+            config.start_top_gate_v + index * top_step
+            for index in range(config.top_gate_points)
+        ]
+    if config.bottom_gate_points == 1:
+        bottom_gate_voltages = [config.start_bottom_gate_v]
+    else:
+        bottom_step = (config.stop_bottom_gate_v - config.start_bottom_gate_v) / (
+            config.bottom_gate_points - 1
+        )
+        bottom_gate_voltages = [
+            config.start_bottom_gate_v + index * bottom_step
+            for index in range(config.bottom_gate_points)
+        ]
+
+    conditions: list[MeasurementCondition] = []
+    for top_index, top_gate_v in enumerate(top_gate_voltages):
+        bottom_row = (
+            bottom_gate_voltages
+            if top_index % 2 == 0
+            else list(reversed(bottom_gate_voltages))
+        )
+        for bottom_gate_v in bottom_row:
+            conditions.append(
+                MeasurementCondition(
+                    sequence_index=len(conditions),
+                    source_voltage_v=config.source_voltage_v,
+                    estimated_current_a=config.source_voltage_v / series_resistance_ohm,
+                    frequency_hz=config.frequency_hz,
+                    temperature_k=config.target_temperature_k,
+                    field_t=config.target_field_t,
+                    gate_top_voltage_v=top_gate_v,
+                    gate_bottom_voltage_v=bottom_gate_v,
+                )
+            )
+    return tuple(conditions)
+
+
+def run_gate_sweep(
+    engine: MeasurementEngine,
+    station: SafeStation,
+    store: RunStore,
+    run_id: str,
+    config: GateSweepConfig,
+    *,
+    series_resistance_ohm: float,
+) -> int:
+    accepted_ids = store.accepted_condition_ids(run_id)
+    measured = 0
+    for condition in gate_sweep_conditions(
+        config,
+        series_resistance_ohm=series_resistance_ohm,
+    ):
+        if condition.condition_id in accepted_ids:
+            continue
+        station.ramp_gates(
+            condition.gate_top_voltage_v,
+            condition.gate_bottom_voltage_v,
+            max_step_v=config.gate_ramp_step_v,
+            step_delay_s=config.gate_ramp_step_delay_s,
+        )
+        if config.gate_settle_s:
+            time.sleep(config.gate_settle_s)
+        engine.acquire(condition)
+        measured += 1
+
+    station.ramp_gates(
+        0.0,
+        0.0,
+        max_step_v=config.gate_ramp_step_v,
+        step_delay_s=config.gate_ramp_step_delay_s,
+    )
     return measured

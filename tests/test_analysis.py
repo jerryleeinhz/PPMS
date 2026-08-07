@@ -23,6 +23,8 @@ def _row(
         "timestamp_s": float(reading_id),
         "temperature_k": 15.0,
         "field_t": 0.0,
+        "gate_top_voltage_v": None,
+        "gate_bottom_voltage_v": None,
         "sample_position_deg": 0.0,
         "drive_current_a": 1e-6,
         "frequency_hz": 17.777,

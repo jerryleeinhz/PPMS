@@ -17,6 +17,7 @@ from ppms_control.hardware_run import (
     HardwareRunError,
     run_authorized_field_sweep,
     run_authorized_frequency_sweep,
+    run_authorized_gate_sweep,
     run_authorized_temperature_field_sweep,
     run_authorized_voltage_sweep,
 )
@@ -25,10 +26,12 @@ from ppms_control.ole_inspection import OleInspectionError, inspect_active_multi
 from ppms_control.protocols import (
     prepare_field_sweep,
     prepare_frequency_sweep,
+    prepare_gate_sweep,
     prepare_temperature_field_sweep,
     prepare_voltage_sweep,
     run_field_sweep,
     run_frequency_sweep,
+    run_gate_sweep,
     run_temperature_field_sweep,
     run_voltage_sweep,
 )
@@ -67,6 +70,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     simulate_temperature_field.add_argument("config", type=Path)
     simulate_temperature_field.add_argument("--resume-run", default=None)
+
+    simulate_gate = subparsers.add_parser(
+        "simulate-gate",
+        help="Run the fixed-environment dual-gate grid simulation",
+    )
+    simulate_gate.add_argument("config", type=Path)
+    simulate_gate.add_argument("--resume-run", default=None)
 
     diagnose = subparsers.add_parser(
         "diagnose-hardware",
@@ -109,6 +119,15 @@ def _parser() -> argparse.ArgumentParser:
     hardware_temperature_field.add_argument("--diagnostic-run-id", required=True)
     hardware_temperature_field.add_argument("--confirm", required=True)
     hardware_temperature_field.add_argument("--resume-run", default=None)
+
+    hardware_gate = subparsers.add_parser(
+        "run-hardware-gate",
+        help="Run the authorized dual-gate grid on real hardware",
+    )
+    hardware_gate.add_argument("config", type=Path)
+    hardware_gate.add_argument("--diagnostic-run-id", required=True)
+    hardware_gate.add_argument("--confirm", required=True)
+    hardware_gate.add_argument("--resume-run", default=None)
 
     export = subparsers.add_parser("export", help="Export accepted attempts to CSV")
     export.add_argument("database", type=Path)
@@ -206,6 +225,8 @@ def _simulate(
             protocol = "fixed_excitation_field_sweep"
         elif sweep_kind == "temperature_field":
             protocol = "fixed_excitation_temperature_field_sweep"
+        elif sweep_kind == "gate":
+            protocol = "fixed_environment_gate_sweep"
         else:
             raise ValueError(f"Unsupported simulation sweep: {sweep_kind}")
         run_id = store.start_run(
@@ -250,7 +271,7 @@ def _simulate(
                 config.field_sweep,
                 series_resistance_ohm=config.instruments.series_resistance_ohm,
             )
-        else:
+        elif sweep_kind == "temperature_field":
             prepare_temperature_field_sweep(
                 safe_station,
                 config.temperature_field_sweep,
@@ -261,6 +282,16 @@ def _simulate(
                 store,
                 run_id,
                 config.temperature_field_sweep,
+                series_resistance_ohm=config.instruments.series_resistance_ohm,
+            )
+        else:
+            prepare_gate_sweep(safe_station, config.gate_sweep)
+            measured = run_gate_sweep(
+                engine,
+                safe_station,
+                store,
+                run_id,
+                config.gate_sweep,
                 series_resistance_ohm=config.instruments.series_resistance_ohm,
             )
         terminal_status = "completed"
@@ -378,6 +409,7 @@ def _run_hardware_command(
         "frequency": run_authorized_frequency_sweep,
         "field": run_authorized_field_sweep,
         "temperature_field": run_authorized_temperature_field_sweep,
+        "gate": run_authorized_gate_sweep,
     }
     try:
         runner = runners[sweep_kind]
@@ -527,6 +559,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.resume_run,
                 sweep_kind="temperature_field",
             )
+        if args.command == "simulate-gate":
+            return _simulate(args.config, args.resume_run, sweep_kind="gate")
         if args.command == "diagnose-hardware":
             return _diagnose_hardware_command(args.config)
         if args.command == "run-hardware":
@@ -559,6 +593,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 confirmation=args.confirm,
                 resume_run_id=args.resume_run,
                 sweep_kind="temperature_field",
+            )
+        if args.command == "run-hardware-gate":
+            return _run_hardware_command(
+                args.config,
+                diagnostic_run_id=args.diagnostic_run_id,
+                confirmation=args.confirm,
+                resume_run_id=args.resume_run,
+                sweep_kind="gate",
             )
         if args.command == "export":
             with RunStore(args.database) as store:

@@ -14,6 +14,8 @@ class MeasurementCondition:
     frequency_hz: float
     temperature_k: float
     field_t: float
+    gate_top_voltage_v: float = 0.0
+    gate_bottom_voltage_v: float = 0.0
 
     @property
     def condition_id(self) -> str:
@@ -25,6 +27,8 @@ class MeasurementCondition:
                 "source_voltage_v": canonical(self.source_voltage_v),
                 "frequency_hz": canonical(self.frequency_hz),
                 "field_t": canonical(self.field_t),
+                "gate_bottom_voltage_v": canonical(self.gate_bottom_voltage_v),
+                "gate_top_voltage_v": canonical(self.gate_top_voltage_v),
                 "temperature_k": canonical(self.temperature_k),
             },
             allow_nan=False,
@@ -154,6 +158,8 @@ class TransportReading:
     phase_deg: float | None
     ratio_db: float | None
     phase_resolved: bool
+    gate_top_voltage_v: float | None = None
+    gate_bottom_voltage_v: float | None = None
     sequence_index: int | None = None
     source_row: int | None = None
     comment: str = ""
@@ -171,6 +177,8 @@ class TransportReading:
             self.timestamp_s,
             self.temperature_k,
             self.field_t,
+            self.gate_top_voltage_v,
+            self.gate_bottom_voltage_v,
             self.sample_position_deg,
             self.drive_current_a,
             self.frequency_hz,
