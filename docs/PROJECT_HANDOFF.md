@@ -279,7 +279,8 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 
 MultiPyVu 3.6.1公开的客户端和命令工厂没有sequence启停命令；当前开发电脑也没有
 DynaCool/MultiVu安装可检查其COM类型库。因此第6项的最小下一步是在PPMS控制电脑上
-只读检查`QD.MULTIVU.DYNACOOL.1` COM对象的方法列表，并确认是否存在受支持的sequence
+运行`python -m ppms_control inspect-multivu-ole`，只读检查
+`QD.MULTIVU.DYNACOOL.1`活动COM对象的方法列表，并确认是否存在受支持的sequence
 加载、启动、停止和状态方法。不得根据猜测调用未知COM方法，也不得硬编码尚未解释的
 `ETOR`位置参数。
 
@@ -290,6 +291,6 @@ DynaCool/MultiVu安装可检查其COM类型库。因此第6项的最小下一步
 
 ```text
 请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md和README.md，检查git diff与测试。
-先在PPMS控制电脑上只读检查MultiVu COM/OLE对象是否公开sequence加载、启动、停止和状态接口，
-记录方法名、参数和返回值。确认后实现ETO运行层；不要猜测ETO ETOR参数或调用未知写接口。
+先在PPMS控制电脑上保持MultiVu运行，执行`python -m ppms_control inspect-multivu-ole`，
+保存其JSON输出。确认sequence方法后实现ETO运行层；不要猜测ETO ETOR参数或调用未知写接口。
 ```

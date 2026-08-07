@@ -21,6 +21,7 @@ from ppms_control.hardware_run import (
     run_authorized_voltage_sweep,
 )
 from ppms_control.instruments import build_simulated_bundle
+from ppms_control.ole_inspection import OleInspectionError, inspect_active_multivu_ole
 from ppms_control.protocols import (
     prepare_field_sweep,
     prepare_frequency_sweep,
@@ -165,6 +166,16 @@ def _parser() -> argparse.ArgumentParser:
         "--final",
         action="store_true",
         help="With --once, also consume a final row without a newline",
+    )
+
+    inspect_ole = subparsers.add_parser(
+        "inspect-multivu-ole",
+        help="Read type information from an already-running MultiVu OLE object",
+    )
+    inspect_ole.add_argument(
+        "--progid",
+        default="QD.MULTIVU.DYNACOOL.1",
+        help="Active MultiVu COM ProgID; the default is DynaCool",
     )
     return parser
 
@@ -592,12 +603,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 once=args.once,
                 final=args.final,
             )
+        if args.command == "inspect-multivu-ole":
+            print(json.dumps(inspect_active_multivu_ole(args.progid), indent=2, sort_keys=True))
+            return 0
     except (
         AuthorizationError,
         ConfigError,
         DiagnosticError,
         EtoDataError,
         HardwareRunError,
+        OleInspectionError,
         StoreError,
     ) as exc:
         print(f"Operation refused: {exc}", file=sys.stderr)

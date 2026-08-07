@@ -111,6 +111,17 @@ Copy-Item 'config\hardware.example.toml' 'config\hardware.local.toml'
 The conventional same-computer MultiPyVu endpoint is configured as
 `127.0.0.1:5000`. The diagnostic command does not send setpoints.
 
+To inspect whether an already-running DynaCool MultiVu instance exposes
+sequence control through OLE, without invoking any OLE method:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m ppms_control inspect-multivu-ole
+```
+
+This command uses `GetActiveObject`, so it refuses to proceed when MultiVu is
+not already running and does not launch it. Preserve the JSON output for API
+review before enabling any sequence write operation.
+
 ## Authorized hardware sweeps
 
 Use the `run_id` printed by a successful diagnostic performed with the exact
