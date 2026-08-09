@@ -9,6 +9,9 @@ architecture boundaries, design goals, and real-hardware entry criteria.
 For the SR lock-in resistance definition, dual-gate `grid`/`paired` workflow,
 manual TOML parameters, data columns, and a file-by-file testing map, see
 [docs/SR_DUAL_GATE_TEST_GUIDE.md](docs/SR_DUAL_GATE_TEST_GUIDE.md).
+For SQLite/ETO plotting, the CrSBr Notebook and 2M-WS2 paper figure map,
+dual-gate `R(Vg1,Vg2)`/`R(n,D)` analysis, and interpretation limits, see
+[docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md).
 For the current two-backend design, verified ETO format, compliance findings,
 implementation status, and next-chat handoff, read
 [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md) first.
@@ -30,7 +33,10 @@ Current milestone:
 - read-only VISA and MultiPyVu hardware diagnostics;
 - authorized real-hardware commands for all five SR protocols;
 - a strict parser and inspection command for MultiVu ETO 1.2 `.dat` files;
-- restart-safe incremental ETO file ingestion with atomic SQLite checkpoints.
+- restart-safe incremental ETO file ingestion with atomic SQLite checkpoints;
+- manifest-driven PNG/PDF analysis figures from a SQLite run or ETO file/directory,
+  including current, frequency, temperature, field, angle, harmonic, gamma, and
+  dual-gate products.
 
 The SR830 front-panel `SINE OUT` is treated as a voltage source. Requested and
 read-back amplitudes are stored in volts RMS. The configured series resistance
@@ -63,6 +69,12 @@ environment is activated, prefer the complete Python path shown above; the
 environment's `Scripts` directory may not be on the current PowerShell `PATH`.
 Each command is standalone and can be pasted separately.
 
+Install the optional plotting dependency when analysis output is needed:
+
+```powershell
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[analysis]'
+```
+
 ## Inspect existing MultiVu ETO data
 
 The installed ETO 1.2 format stores the fundamental voltage as amplitude and
@@ -94,6 +106,34 @@ transaction. It defers a trailing partial line, rejects truncation or rewriting
 of consumed data, and can resume an interrupted run with `--resume-run`.
 Channel roles are mandatory because ETO channel numbers do not universally
 mean `xx` or `xy`.
+
+## Generate analysis figures
+
+Generate figures from one SQLite run:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m ppms_control plot-data `
+  'C:\PPMS_Data\ppms_control.sqlite' 'C:\PPMS_Data\figures\RUN_ID' `
+  --run-id '<RUN_ID>'
+```
+
+Or read one ETO `.dat` file or a directory recursively, with explicit channel
+roles:
+
+```powershell
+& '.\.venv\Scripts\python.exe' -m ppms_control plot-data `
+  'C:\path\to\ETO_directory' 'C:\PPMS_Data\figures\ETO_run' `
+  --channel-1-role xy --channel-2-role xx
+```
+
+The default output is PNG and PDF plus `analysis_records.csv` and
+`analysis_manifest.json`; `fit_summary.csv` is added when a fit is available. The manifest states which
+requested figure types were generated or skipped and why. It also records
+compliance-related input warnings. Add `--gate-calibration
+config\gate_calibration.local.toml` only after replacing the example values
+with independently justified device capacitances and offsets. Full formulas,
+paper-panel mappings, and data-quality boundaries are in
+[docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md).
 
 The example database is written below `run_data/`. For real measurements, use
 a local, non-synchronised data directory and archive the closed run afterwards;

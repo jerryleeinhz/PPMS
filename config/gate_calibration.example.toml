@@ -1,0 +1,9 @@
+[gate_calibration]
+# Replace these placeholders only with independently calibrated capacitances
+# per unit area and voltage offsets for the actual device.
+top_capacitance_f_per_m2 = 0.001
+bottom_capacitance_f_per_m2 = 0.001
+top_offset_v = 0.0
+bottom_offset_v = 0.0
+density_offset_per_m2 = 0.0
+displacement_offset_c_per_m2 = 0.0

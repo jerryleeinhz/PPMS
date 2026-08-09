@@ -27,8 +27,10 @@ estimated_current_a = source_voltage_v / series_resistance_ohm
 ppms_qcodes_control/
 ├── config/
 │   ├── simulation.toml
-│   └── hardware.example.toml
+│   ├── hardware.example.toml
+│   └── gate_calibration.example.toml
 ├── docs/
+│   ├── DATA_ANALYSIS.md
 │   ├── DESIGN_GOALS.md
 │   ├── HARDWARE_DIAGNOSTICS.md
 │   ├── HARDWARE_VALIDATION_CHECKLIST.md
@@ -46,6 +48,7 @@ ppms_qcodes_control/
 - `simulation.toml`：可直接运行的仿真配置。
 - `hardware.example.toml`：真实仪器模板；复制为 `hardware.local.toml` 后填写
   VISA 地址和样品信息。
+- `gate_calibration.example.toml`：双栅 `n-D` 坐标模板；必须用独立器件标定替换示例值。
 - 配置采用严格校验：缺失字段、未知字段、非有限数值、SR830 负幅值、越限电压、
   估算电流越限以及温场速率越限都会在连接仪器前被拒绝。
 
@@ -53,7 +56,7 @@ ppms_qcodes_control/
 
 | 文件 | 责任 |
 | --- | --- |
-| `cli.py` | 配置校验、仿真、只读诊断、授权硬件运行和 CSV 导出 |
+| `cli.py` | 配置校验、仿真、只读诊断、授权硬件运行、CSV 导出和数据绘图 |
 | `config.py` | TOML 数据模型与跨字段安全校验 |
 | `diagnostics.py` | 不发送设置命令的 VISA/MultiPyVu 诊断 |
 | `authorization.py` | 精确确认词、诊断 `run_id` 和配置哈希校验 |
@@ -65,6 +68,7 @@ ppms_qcodes_control/
 | `store.py` | SQLite 运行、事件、尝试、原始仪器状态与 CSV |
 | `hardware_run.py` | 授权、连接、温场准备、扫描、审计和清理 |
 | `models.py` | 条件、读数、物理状态和尝试结果数据结构 |
+| `plotting.py` | SQLite/ETO 只读分析、拟合、论文图、双栅图和生成清单 |
 
 ### `tests/`
 
@@ -108,6 +112,7 @@ SQLite 是原始审计数据源，CSV 是派生副本。
 - `events`：诊断、授权、异常、清理和停机后状态。
 - `attempts`：每个条件的平均值、标准差、质量标记和错误。
 - `instrument_samples`：每次原始采样的完整物理状态和测量值。
+- `transport_readings`：后端无关的信号/谐波长表，供 SR、ETO、导出和绘图共用。
 
 `instrument_samples` 包含：
 
@@ -153,4 +158,6 @@ PPMS 场方向和所有样品安全限制。自动测试不能完成这些物理
 - 根据实际接线校准电压到样品电流的换算；
 - 在真实仪器上分级验证温度—磁场和双栅扫描；
 - 根据真实噪声和时间常数优化锁相量程、等待时间与质量规则；
-- 在硬件数据验证后增加实验分析、绘图和报告。
+- 确认旋转台机械角度范围、零点、方向和安全转速后实现授权角度扫描；
+- 在 PPMS 控制电脑只读确认 MultiVu OLE/sequence 能力后实现 ETO 运行层；
+- 用真实 SR 双栅、温场和角度数据复核 `docs/DATA_ANALYSIS.md` 中的图形与标定。

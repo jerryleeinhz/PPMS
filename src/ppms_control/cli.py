@@ -23,6 +23,13 @@ from ppms_control.hardware_run import (
 )
 from ppms_control.instruments import build_simulated_bundle
 from ppms_control.ole_inspection import OleInspectionError, inspect_active_multivu_ole
+from ppms_control.plotting import (
+    PlotDataError,
+    generate_publication_plots,
+    load_eto_path,
+    load_gate_calibration,
+    load_sqlite_run,
+)
 from ppms_control.protocols import (
     prepare_field_sweep,
     prepare_frequency_sweep,
@@ -157,6 +164,31 @@ def _parser() -> argparse.ArgumentParser:
     export_transport_summary.add_argument("database", type=Path)
     export_transport_summary.add_argument("run_id")
     export_transport_summary.add_argument("destination", type=Path)
+
+    plot_data = subparsers.add_parser(
+        "plot-data",
+        help="Generate publication-analysis figures from a SQLite run or ETO .dat path",
+    )
+    plot_data.add_argument("source", type=Path)
+    plot_data.add_argument("output_dir", type=Path)
+    plot_data.add_argument(
+        "--run-id",
+        help="Required when source is a SQLite database",
+    )
+    plot_data.add_argument("--channel-1-role", choices=("xx", "xy"))
+    plot_data.add_argument("--channel-2-role", choices=("xx", "xy"))
+    plot_data.add_argument(
+        "--gate-calibration",
+        type=Path,
+        help="Optional strict TOML calibration used only for the n-D map",
+    )
+    plot_data.add_argument(
+        "--format",
+        dest="formats",
+        action="append",
+        choices=("png", "pdf"),
+        help="Repeat to select outputs; defaults to both PNG and PDF",
+    )
 
     inspect_eto = subparsers.add_parser(
         "inspect-eto-data",
@@ -437,6 +469,67 @@ def _run_hardware_command(
     return 0
 
 
+def _plot_data_command(
+    source: Path,
+    output_dir: Path,
+    *,
+    run_id: str | None,
+    channel_1_role: str | None,
+    channel_2_role: str | None,
+    gate_calibration: Path | None,
+    formats: Sequence[str] | None,
+) -> int:
+    resolved = source.resolve()
+    is_eto = resolved.is_dir() or resolved.suffix.lower() == ".dat"
+    if is_eto:
+        if run_id is not None:
+            raise PlotDataError("--run-id is only valid for a SQLite source.")
+        if channel_1_role is None or channel_2_role is None:
+            raise PlotDataError(
+                "ETO plotting requires --channel-1-role and --channel-2-role."
+            )
+        dataset = load_eto_path(
+            resolved,
+            {1: channel_1_role, 2: channel_2_role},
+        )
+    else:
+        if run_id is None:
+            raise PlotDataError("SQLite plotting requires --run-id.")
+        if channel_1_role is not None or channel_2_role is not None:
+            raise PlotDataError("ETO channel roles are not valid for a SQLite source.")
+        dataset = load_sqlite_run(resolved, run_id)
+
+    calibration = (
+        load_gate_calibration(gate_calibration)
+        if gate_calibration is not None
+        else None
+    )
+    manifest = generate_publication_plots(
+        dataset,
+        output_dir,
+        calibration=calibration,
+        formats=tuple(formats) if formats else ("png", "pdf"),
+    )
+    generated = sum(
+        entry["status"] == "generated" for entry in manifest["figures"]
+    )
+    skipped = sum(entry["status"] == "skipped" for entry in manifest["figures"])
+    print(
+        json.dumps(
+            {
+                "generated_figures": generated,
+                "manifest": manifest["manifest"],
+                "output_dir": str(output_dir.resolve()),
+                "record_count": manifest["record_count"],
+                "skipped_figures": skipped,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _follow_eto_command(
     data_file: Path,
     database: Path,
@@ -628,6 +721,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             print(output)
             return 0
+        if args.command == "plot-data":
+            return _plot_data_command(
+                args.source,
+                args.output_dir,
+                run_id=args.run_id,
+                channel_1_role=args.channel_1_role,
+                channel_2_role=args.channel_2_role,
+                gate_calibration=args.gate_calibration,
+                formats=args.formats,
+            )
         if args.command == "inspect-eto-data":
             parsed = load_eto_data(args.data_file)
             print(json.dumps(parsed.summary(), indent=2, sort_keys=True))
@@ -655,6 +758,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         EtoDataError,
         HardwareRunError,
         OleInspectionError,
+        PlotDataError,
         StoreError,
     ) as exc:
         print(f"Operation refused: {exc}", file=sys.stderr)

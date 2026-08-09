@@ -1,6 +1,6 @@
 # PPMS输运控制项目：设计方案、目标、进展与交接
 
-更新日期：2026-08-07
+更新日期：2026-08-09
 
 本文档是新会话的首要上下文。继续开发前，应先阅读本文档以及项目根目录的
 `README.md`。本文档记录已经确认的实验需求、真实ETO文件格式、软件边界、当前
@@ -189,6 +189,9 @@ Electrical Transport Option, Release 1.2.0 Build 0
 - 公共输运长表导出和按观测/信号/谐波汇总的作图就绪CSV；相位采用圆统计，ETO分时源行不配对。
 - 固定温度、磁场和激励下的SR双栅二维网格扫描：蛇形路径、分步斜坡、逐步/逐样本漏电检查、
   栅压状态核验、断点续跑和结束归零；栅压写入条件ID、attempts和公共输运长表。
+- SQLite单次run或ETO文件/目录的只读绘图套件：电流/谐波标度、频率、温度、磁场、角度、
+  磁手性系数、真实温场二维图、双栅电阻/漏电/paired轨迹和经显式标定的`n-D`图；每次输出
+  `analysis_manifest.json`，对缺失输入、ETO无符号高次谐波和compliance数据明确标记。
 
 ### 6.2 当前SR后端状态
 
@@ -219,8 +222,10 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 
 - 生成或修改MultiVu sequence；
 - 从Python启动、停止和监控sequence；
-- 将一个sequence中的Ch1/Ch2分时记录按扫描条件组合成分析视图；
 - 验证控制电脑上是否存在可直接操作ETO的OLE/API。
+
+静态ETO文件或目录现在可以直接生成按源文件与条件分组的分析图；这不等于已经能够控制
+MultiVu sequence。Ch1/Ch2仍保持分时源记录，绘图层不会假设它们严格同步。
 
 ## 7. 关键代码位置
 
@@ -238,8 +243,12 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 | `src/ppms_control/hardware_run.py` | 真实SR扫描授权入口 |
 | `src/ppms_control/eto_follow.py` | ETO增量读取与SQLite原子检查点 |
 | `src/ppms_control/analysis.py` | 不强制通道配对的输运汇总和圆相位统计 |
+| `src/ppms_control/plotting.py` | SQLite/ETO只读绘图、拟合、manifest和双栅坐标转换 |
+| `docs/DATA_ANALYSIS.md` | CrSBr Notebook与2M-WS2论文图映射、命令、公式和数据边界 |
 | `config/hardware.example.toml` | GPIB和PPMS Server地址模板 |
+| `config/gate_calibration.example.toml` | 双栅`n-D`转换的严格标定模板 |
 | `tests/test_eto_data.py` | ETO解析、标准化和长表存储测试 |
+| `tests/test_plotting.py` | 绘图套件、双栅图和标定拒绝规则测试 |
 
 ## 8. 运行和验证
 
@@ -280,34 +289,68 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 - SQLite是数据源，CSV和宽表是派生结果；
 - 在实际API能力未知时，优先采用MultiVu sequence加增量文件读取。
 
-## 10. 下一阶段
+## 10. 阶段、完成记录与下一阶段
 
-截至2026-08-07，原计划进度如下：
+### 10.1 阶段更新规则
 
-1. [完成] 两通道、三个谐波的顺序采集；
-2. [完成] 频率扫描协议；
-3. [完成] 磁场扫描和旋转台角度状态；
-4. [完成] 温度—磁场网格扫描；
-5. [完成] ETO `.dat`增量跟随读取；
-6. [完成软件层，等待实机分级验证] SR双栅二维网格、已确定轨迹的Vg1/Vg2配对线扫、
-   安全斜坡、漏电联锁和栅压数据导出；
-7. [等待实机接口确认] 在确认MultiVu sequence启动/停止/状态接口后实现ETO运行层；
-8. [部分完成] 已增加公共长表和作图就绪汇总CSV；具体论文图版式等待实验图形需求。
+以后每次完成可交付功能，都必须在同一个提交中更新本节：
 
-MultiPyVu 3.6.1公开的客户端和命令工厂没有sequence启停命令；当前开发电脑也没有
-DynaCool/MultiVu安装可检查其COM类型库。因此第6项的最小下一步是在PPMS控制电脑上
-运行`python -m ppms_control inspect-multivu-ole`，只读检查
-`QD.MULTIVU.DYNACOOL.1`活动COM对象的方法列表，并确认是否存在受支持的sequence
-加载、启动、停止和状态方法。不得根据猜测调用未知COM方法，也不得硬编码尚未解释的
-`ETOR`位置参数。
+1. 更新文档日期；
+2. 更新阶段表的状态与完成证据（代码、测试或实机记录）；
+3. 写明当前主阶段和进入下一阶段的条件；
+4. 软件测试、真实硬件验证和物理论证分别记录，不能用其中一项替代另一项。
 
-旋转台目前只读状态。加入真实角度扫描前还必须确认样品杆/线缆允许角度、零点定义、方向和
-安全转速；这些机械安全参数不能从MultiPyVu通用API推断。
+### 10.2 当前阶段表
+
+截至2026-08-09，当前主阶段为 **S4：真实SR硬件分级验证**。S5和S6可在各自入口信息
+齐备后并行推进。
+
+| 阶段 | 状态 | 范围与完成证据 | 下一入口 |
+| --- | --- | --- | --- |
+| S0 需求与公共数据模型 | 完成 | 两后端边界、`TransportReading`长表、SQLite审计模型 | — |
+| S1 仿真与公共采集核心 | 完成 | 两锁相三谐波、状态联读、重试、断点续跑、自动测试 | — |
+| S2 SR扫描与双栅软件 | 软件完成，实机待验 | 电压/频率/场/温场/grid/paired、漏电联锁；仿真与单元测试通过 | 按硬件清单从0 V逐级验证 |
+| S3 数据分析与论文图 | 软件完成 | `plot-data`、PNG/PDF、manifest、CrSBr真实ETO回放、合成论文/双栅测试 | 用新SR实测数据复核几何和标定 |
+| S4 真实SR硬件分级验证 | 当前阶段 | 尚无样品安全范围内的完整实机证据 | 操作员确认接线、量程、compliance和样品限值 |
+| S5 旋转台角度控制 | 待入口参数 | 当前只读取角度/状态，尚无写角度协议 | 确认允许范围、零点、正方向、安全转速和线缆约束 |
+| S6 ETO运行层 | 待接口确认 | ETO静态/增量读取和分析完成；sequence启停未实现 | 在PPMS电脑保存只读OLE方法枚举 |
+| S7 两后端集成验收 | 未开始 | 最终协议、数据、恢复、绘图和安全清理联合验收 | S4–S6的必需项完成 |
+
+### 10.3 S3本次完成内容
+
+- `plot-data`从单次SQLite run或ETO文件/目录生成分析产物；
+- 覆盖CrSBr Notebook要求的电流、dB、高次谐波标度、频率、温度、场扫和非线性残差；
+- 覆盖2M-WS2论文所需的场、电流、角度、温度、`gamma`和真实`T-B`输运图；
+- 覆盖双栅`R(Vg1,Vg2)`、漏电、paired轨迹和显式标定`R(n,D)`；
+- 不存在Nernst、散射率、Hall提取或电极方向元数据时明确跳过，不伪造结果；
+- 使用现有CrSBr目录回放15111条标准化记录；检测到ETO compliance后在图与manifest警告；
+- 增加合成多维数据和标定严格性测试。具体命令与图键见`docs/DATA_ANALYSIS.md`。
+
+### 10.4 S5旋转台待完成清单
+
+当前MultiPyVu适配器只读`sample_position_deg`与状态；“已经记录角度”不等于“已经控制
+角度”。实现真实角度扫描前必须由实验现场确认：
+
+1. 样品杆、线缆和转台的硬限位及软件允许角度范围；
+2. 0°的物理定义、正方向和跨越0°/360°的路径规则；
+3. 安全转速或移动模式、到位判据、超时和稳定等待；
+4. 不同磁场下是否允许转动，以及失联/中断时保持当前位置还是回安全角；
+5. 使用哪一个已验证的MultiPyVu方法和状态码。
+
+信息齐备后需要增加严格TOML字段、只读诊断显示、授权角度扫描协议、逐点状态/角度记录、
+中断清理和真实空载分级验证。不得在机械边界未知时发送角度设置命令。
+
+### 10.5 S6 ETO运行层入口
+
+MultiPyVu 3.6.1公开客户端和命令工厂没有sequence启停命令；当前开发电脑没有
+DynaCool/MultiVu安装可检查其COM类型库。下一步是在PPMS控制电脑保持MultiVu运行并执行
+`python -m ppms_control inspect-multivu-ole`，保存JSON输出，确认是否有受支持的sequence
+加载、启动、停止和状态方法。不得猜测COM方法，也不得硬编码尚未解释的`ETOR`位置参数。
 
 ## 11. 新会话建议提示词
 
 ```text
-请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md和README.md，检查git diff与测试。
-先在PPMS控制电脑上保持MultiVu运行，执行`python -m ppms_control inspect-multivu-ole`，
-保存其JSON输出。确认sequence方法后实现ETO运行层；不要猜测ETO ETOR参数或调用未知写接口。
+请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md、README.md和docs/DATA_ANALYSIS.md，
+检查git diff与测试。当前主阶段是S4真实SR硬件分级验证；若旋转台机械参数或MultiVu OLE
+JSON已经取得，则按S5/S6入口继续。不要猜测旋转台边界、ETO ETOR参数或未知写接口。
 ```
