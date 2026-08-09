@@ -1,6 +1,6 @@
 # PPMS输运控制项目：设计方案、目标、进展与交接
 
-更新日期：2026-08-09
+更新日期：2026-08-10
 
 本文档是新会话的首要上下文。继续开发前，应先阅读本文档以及项目根目录的
 `README.md`。本文档记录已经确认的实验需求、真实ETO文件格式、软件边界、当前
@@ -192,6 +192,13 @@ Electrical Transport Option, Release 1.2.0 Build 0
 - SQLite单次run或ETO文件/目录的只读绘图套件：电流/谐波标度、频率、温度、磁场、角度、
   磁手性系数、真实温场二维图、双栅电阻/漏电/paired轨迹和经显式标定的`n-D`图；每次输出
   `analysis_manifest.json`，对缺失输入、ETO无符号高次谐波和compliance数据明确标记。
+- `monitor-run`使用SQLite `mode=ro`和短只读事务显示最近已提交的run进度、两锁相、两SMU、
+  PPMS、输运、事件和警告；它不连接仪器，支持指定run或锁定最新运行中run，并兼容只有
+  transport/checkpoint的ETO跟随任务。
+- `notebooks/transport_analysis.ipynb`提供集中参数、SQLite run列表、ETO通道映射、质量摘要、
+  标准图预览和探索性单图；默认不选实验数据，命令助手只打印PowerShell命令，不执行硬件控制。
+- `docs/OPERATING_WORKFLOW.md`记录CLI初学者从安装、TOML、仿真、诊断、授权扫描、双窗口监视
+  到Notebook/批量绘图的完整操作方法。
 
 ### 6.2 当前SR后端状态
 
@@ -244,11 +251,16 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 | `src/ppms_control/eto_follow.py` | ETO增量读取与SQLite原子检查点 |
 | `src/ppms_control/analysis.py` | 不强制通道配对的输运汇总和圆相位统计 |
 | `src/ppms_control/plotting.py` | SQLite/ETO只读绘图、拟合、manifest和双栅坐标转换 |
+| `src/ppms_control/monitoring.py` | SQLite/WAL只读运行快照、警告和终端面板 |
+| `notebooks/transport_analysis.ipynb` | 离线交互分析、run选择、质量检查和图预览 |
 | `docs/DATA_ANALYSIS.md` | CrSBr Notebook与2M-WS2论文图映射、命令、公式和数据边界 |
+| `docs/OPERATING_WORKFLOW.md` | PowerShell扫描、monitor-run和Notebook逐步操作手册 |
 | `config/hardware.example.toml` | GPIB和PPMS Server地址模板 |
 | `config/gate_calibration.example.toml` | 双栅`n-D`转换的严格标定模板 |
 | `tests/test_eto_data.py` | ETO解析、标准化和长表存储测试 |
 | `tests/test_plotting.py` | 绘图套件、双栅图和标定拒绝规则测试 |
+| `tests/test_monitoring.py` | WAL并发可见性、实时警告、ETO兼容和CLI单屏测试 |
+| `tests/test_notebook.py` | Notebook语法、空输出和无硬件控制导入检查 |
 
 ## 8. 运行和验证
 
@@ -258,6 +270,9 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 & 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install --no-deps -e .
 & 'C:\Users\liy56\.conda\envs\AI\python.exe' -m unittest discover -s tests -v
 ```
+
+不熟悉CLI时先按`docs/OPERATING_WORKFLOW.md`逐条复制命令。运行中状态使用第二个PowerShell
+窗口的`monitor-run`，离线交互分析使用`notebooks/transport_analysis.ipynb`。
 
 检查真实ETO文件：
 
@@ -302,7 +317,7 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 
 ### 10.2 当前阶段表
 
-截至2026-08-09，当前主阶段为 **S4：真实SR硬件分级验证**。S5和S6可在各自入口信息
+截至2026-08-10，当前主阶段为 **S4：真实SR硬件分级验证**。S5和S6可在各自入口信息
 齐备后并行推进。
 
 | 阶段 | 状态 | 范围与完成证据 | 下一入口 |
@@ -310,7 +325,7 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 | S0 需求与公共数据模型 | 完成 | 两后端边界、`TransportReading`长表、SQLite审计模型 | — |
 | S1 仿真与公共采集核心 | 完成 | 两锁相三谐波、状态联读、重试、断点续跑、自动测试 | — |
 | S2 SR扫描与双栅软件 | 软件完成，实机待验 | 电压/频率/场/温场/grid/paired、漏电联锁；仿真与单元测试通过 | 按硬件清单从0 V逐级验证 |
-| S3 数据分析与论文图 | 软件完成 | `plot-data`、PNG/PDF、manifest、CrSBr真实ETO回放、合成论文/双栅测试 | 用新SR实测数据复核几何和标定 |
+| S3 数据分析与运行支持 | 软件完成 | `plot-data`、Notebook、`monitor-run`、操作手册、CrSBr真实ETO回放和合成测试 | 用新SR实测数据复核监视状态、几何和标定 |
 | S4 真实SR硬件分级验证 | 当前阶段 | 尚无样品安全范围内的完整实机证据 | 操作员确认接线、量程、compliance和样品限值 |
 | S5 旋转台角度控制 | 待入口参数 | 当前只读取角度/状态，尚无写角度协议 | 确认允许范围、零点、正方向、安全转速和线缆约束 |
 | S6 ETO运行层 | 待接口确认 | ETO静态/增量读取和分析完成；sequence启停未实现 | 在PPMS电脑保存只读OLE方法枚举 |
@@ -325,6 +340,13 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 - 不存在Nernst、散射率、Hall提取或电极方向元数据时明确跳过，不伪造结果；
 - 使用现有CrSBr目录回放15111条标准化记录；检测到ETO compliance后在图与manifest警告；
 - 增加合成多维数据和标定严格性测试。具体命令与图键见`docs/DATA_ANALYSIS.md`。
+- 增加只读`monitor-run`：同一屏使用一致SQLite快照，逐秒刷新最近已提交的仪器/输运状态，
+  对失锁、过载、漏电、温场不稳、设置/读回超容差和失败attempt报警；ETO按通道保留同角色
+  数据，并分开显示数据年龄与follower heartbeat年龄；不建立第二个仪器连接。
+- 增加薄Notebook：顶部集中输入，列出最近SQLite runs，默认不选数据，标准计算继续复用
+  `plotting.py`；Notebook已使用`Python (AI)`内核顺序Run All验证。
+- 增加`docs/OPERATING_WORKFLOW.md`，固定“控制PowerShell + 只读监视PowerShell + 离线Notebook”
+  的操作边界。
 
 ### 10.4 S5旋转台待完成清单
 
@@ -350,7 +372,8 @@ DynaCool/MultiVu安装可检查其COM类型库。下一步是在PPMS控制电脑
 ## 11. 新会话建议提示词
 
 ```text
-请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md、README.md和docs/DATA_ANALYSIS.md，
+请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md、README.md、
+docs/OPERATING_WORKFLOW.md和docs/DATA_ANALYSIS.md，
 检查git diff与测试。当前主阶段是S4真实SR硬件分级验证；若旋转台机械参数或MultiVu OLE
 JSON已经取得，则按S5/S6入口继续。不要猜测旋转台边界、ETO ETOR参数或未知写接口。
 ```

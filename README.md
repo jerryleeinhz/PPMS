@@ -6,6 +6,9 @@ not imported or modified.
 
 See [docs/DESIGN_GOALS.md](docs/DESIGN_GOALS.md) for the directory map,
 architecture boundaries, design goals, and real-hardware entry criteria.
+For a beginner-oriented PowerShell workflow covering simulation, authorized
+scans, live read-only monitoring, exports, and the Notebook, start with
+[docs/OPERATING_WORKFLOW.md](docs/OPERATING_WORKFLOW.md).
 For the SR lock-in resistance definition, dual-gate `grid`/`paired` workflow,
 manual TOML parameters, data columns, and a file-by-file testing map, see
 [docs/SR_DUAL_GATE_TEST_GUIDE.md](docs/SR_DUAL_GATE_TEST_GUIDE.md).
@@ -36,7 +39,11 @@ Current milestone:
 - restart-safe incremental ETO file ingestion with atomic SQLite checkpoints;
 - manifest-driven PNG/PDF analysis figures from a SQLite run or ETO file/directory,
   including current, frequency, temperature, field, angle, harmonic, gamma, and
-  dual-gate products.
+  dual-gate products;
+- a read-only `monitor-run` terminal panel backed by committed SQLite/WAL state;
+- a thin, offline [analysis Notebook](notebooks/transport_analysis.ipynb) with
+  centralized input parameters, quality review, standard plots, and a safe
+  command-printing helper.
 
 The SR830 front-panel `SINE OUT` is treated as a voltage source. Requested and
 read-back amplitudes are stored in volts RMS. The configured series resistance
@@ -69,10 +76,11 @@ environment is activated, prefer the complete Python path shown above; the
 environment's `Scripts` directory may not be on the current PowerShell `PATH`.
 Each command is standalone and can be pasted separately.
 
-Install the optional plotting dependency when analysis output is needed:
+Install the optional plotting and Notebook dependencies when interactive
+analysis is needed:
 
 ```powershell
-& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[analysis]'
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[analysis,notebook]'
 ```
 
 ## Inspect existing MultiVu ETO data
@@ -95,7 +103,7 @@ To ingest an existing file once, while explicitly preserving the current
 sample's channel mapping:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control follow-eto-data `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control follow-eto-data `
   'C:\path\to\measurement.dat' 'C:\PPMS_Data\ppms_control.sqlite' `
   --sample-name 'SAMPLE_NAME' --channel-1-role xy --channel-2-role xx --once
 ```
@@ -107,12 +115,30 @@ of consumed data, and can resume an interrupted run with `--resume-run`.
 Channel roles are mandatory because ETO channel numbers do not universally
 mean `xx` or `xy`.
 
+## Monitor a running measurement read-only
+
+In a second PowerShell window after a scan has started:
+
+```powershell
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control monitor-run `
+  'C:\PPMS_Data\ppms_control.sqlite' --latest-running
+```
+
+The monitor never connects to an instrument. It displays the latest committed
+source, lock-in, SMU, PPMS, transport, progress, event, and warning state from
+SQLite. During PPMS stabilization or a gate ramp there may be no new sample;
+the displayed state is therefore a database snapshot, not a second direct
+instrument poll. `Ctrl+C` in the monitor window stops only the monitor. Use
+`--run-id '<RUN_ID>'` to select a run explicitly or `--once` for one snapshot.
+See [docs/OPERATING_WORKFLOW.md](docs/OPERATING_WORKFLOW.md) for the full
+two-window procedure.
+
 ## Generate analysis figures
 
 Generate figures from one SQLite run:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control plot-data `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control plot-data `
   'C:\PPMS_Data\ppms_control.sqlite' 'C:\PPMS_Data\figures\RUN_ID' `
   --run-id '<RUN_ID>'
 ```
@@ -121,7 +147,7 @@ Or read one ETO `.dat` file or a directory recursively, with explicit channel
 roles:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control plot-data `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control plot-data `
   'C:\path\to\ETO_directory' 'C:\PPMS_Data\figures\ETO_run' `
   --channel-1-role xy --channel-2-role xx
 ```
@@ -135,6 +161,16 @@ with independently justified device capacitances and offsets. Full formulas,
 paper-panel mappings, and data-quality boundaries are in
 [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md).
 
+For interactive review, open the Notebook with the `Python (AI)` kernel:
+
+```powershell
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m jupyter lab `
+  notebooks\transport_analysis.ipynb
+```
+
+The Notebook does not execute hardware control. Its command helper only prints
+PowerShell commands for the user to copy deliberately.
+
 The example database is written below `run_data/`. For real measurements, use
 a local, non-synchronised data directory and archive the closed run afterwards;
 do not write an active SQLite database into OneDrive.
@@ -146,10 +182,10 @@ hardware template to an ignored local configuration, and replace every
 `CHANGE_ME` value before validation:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m pip install -e '.[real-ppms]'
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[real-ppms]'
 Copy-Item 'config\hardware.example.toml' 'config\hardware.local.toml'
-& '.\.venv\Scripts\python.exe' -m ppms_control validate-config config\hardware.local.toml
-& '.\.venv\Scripts\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control validate-config config\hardware.local.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
 ```
 
 The conventional same-computer MultiPyVu endpoint is configured as
@@ -159,7 +195,7 @@ To inspect whether an already-running DynaCool MultiVu instance exposes
 sequence control through OLE, without invoking any OLE method:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control inspect-multivu-ole
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control inspect-multivu-ole
 ```
 
 This command uses `GetActiveObject`, so it refuses to proceed when MultiVu is
@@ -172,7 +208,7 @@ Use the `run_id` printed by a successful diagnostic performed with the exact
 same configuration:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control run-hardware config\hardware.local.toml `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control run-hardware config\hardware.local.toml `
   --diagnostic-run-id '<DIAGNOSTIC_RUN_ID>' `
   --confirm 'I CONFIRM REAL HARDWARE CONTROL'
 ```
@@ -211,7 +247,7 @@ compliance boundary.
 Run the simulation before considering real control:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control simulate-gate config\simulation.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control simulate-gate config\simulation.toml
 ```
 
 For real hardware, first replace the zero-bias placeholders in
@@ -220,7 +256,7 @@ Keithley checks in the hardware validation checklist, and obtain a successful
 diagnostic `run_id`. Then use:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control run-hardware-gate config\hardware.local.toml `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control run-hardware-gate config\hardware.local.toml `
   --diagnostic-run-id '<DIAGNOSTIC_RUN_ID>' `
   --confirm 'I CONFIRM REAL HARDWARE CONTROL'
 ```
@@ -245,7 +281,7 @@ When a Keithley output is off, `gate_*_current_available` is `0`; the adjacent
 current value must not be interpreted as a measurement.
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control export-samples `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control export-samples `
   'C:\PPMS_Data\ppms_control.sqlite' '<RUN_ID>' 'C:\PPMS_Data\instrument_samples.csv'
 ```
 
@@ -253,9 +289,9 @@ The backend-independent long table and a plot-ready per-observation summary
 are exported separately:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control export-transport `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control export-transport `
   'C:\PPMS_Data\ppms_control.sqlite' '<RUN_ID>' 'C:\PPMS_Data\transport_long.csv'
-& '.\.venv\Scripts\python.exe' -m ppms_control export-transport-summary `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control export-transport-summary `
   'C:\PPMS_Data\ppms_control.sqlite' '<RUN_ID>' 'C:\PPMS_Data\transport_summary.csv'
 ```
 

@@ -153,6 +153,34 @@ def _readonly_connection(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def list_sqlite_runs(database: str | Path, *, limit: int = 20) -> tuple[dict[str, object], ...]:
+    """List recent runs for notebook selection without modifying the database."""
+
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise PlotDataError("SQLite run-list limit must be a positive integer.")
+    source = Path(database).resolve()
+    with _readonly_connection(source) as connection:
+        try:
+            rows = connection.execute(
+                """
+                SELECT r.run_id, r.protocol, r.sample_name, r.status,
+                       r.started_at, r.ended_at,
+                       (SELECT COUNT(*) FROM attempts AS a
+                        WHERE a.run_id = r.run_id AND a.accepted = 1)
+                           AS accepted_conditions,
+                       (SELECT COUNT(*) FROM transport_readings AS t
+                        WHERE t.run_id = r.run_id) AS transport_readings
+                FROM runs AS r
+                ORDER BY r.started_at DESC, r.rowid DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        except sqlite3.Error as exc:
+            raise PlotDataError(f"Cannot list SQLite runs in {source}: {exc}") from exc
+    return tuple(dict(row) for row in rows)
+
+
 def load_sqlite_run(database: str | Path, run_id: str) -> PlotDataset:
     source = Path(database).resolve()
     with _readonly_connection(source) as connection:

@@ -46,7 +46,7 @@ Do not rely on software cleanup as the only protection.
 Run:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
 ```
 
 - [ ] All four VISA identities match their assigned physical roles.

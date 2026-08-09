@@ -12,8 +12,10 @@ from ppms_control.plotting import (
     PlotDataset,
     PlotRecord,
     generate_publication_plots,
+    list_sqlite_runs,
     load_gate_calibration,
 )
+from ppms_control.store import RunStore
 
 
 HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
@@ -212,7 +214,23 @@ assumed_dielectric = 3.0
             encoding="utf-8",
         )
         with self.assertRaisesRegex(PlotDataError, "unknown"):
-            load_gate_calibration(path)
+                load_gate_calibration(path)
+
+    def test_recent_sqlite_runs_can_be_listed_read_only(self) -> None:
+        database = TEST_OUTPUT_ROOT / "run-list.sqlite"
+        with RunStore(database) as store:
+            run_id = store.start_run(
+                protocol="notebook_run_list_test",
+                sample_name="RUN_LIST_SAMPLE",
+                config_json="{}",
+                station_snapshot_json="{}",
+            )
+            store.finish_run(run_id, "completed")
+
+        rows = list_sqlite_runs(database, limit=5)
+        selected = next(row for row in rows if row["run_id"] == run_id)
+        self.assertEqual(selected["status"], "completed")
+        self.assertEqual(selected["sample_name"], "RUN_LIST_SAMPLE")
 
 
 @unittest.skipUnless(HAS_MATPLOTLIB, "matplotlib analysis extra is not installed")

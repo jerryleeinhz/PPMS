@@ -34,7 +34,10 @@ ppms_qcodes_control/
 │   ├── DESIGN_GOALS.md
 │   ├── HARDWARE_DIAGNOSTICS.md
 │   ├── HARDWARE_VALIDATION_CHECKLIST.md
+│   ├── OPERATING_WORKFLOW.md
 │   └── SR_DUAL_GATE_TEST_GUIDE.md
+├── notebooks/
+│   └── transport_analysis.ipynb
 ├── src/ppms_control/
 ├── tests/
 ├── run_data/                 # 被 Git 忽略
@@ -56,7 +59,7 @@ ppms_qcodes_control/
 
 | 文件 | 责任 |
 | --- | --- |
-| `cli.py` | 配置校验、仿真、只读诊断、授权硬件运行、CSV 导出和数据绘图 |
+| `cli.py` | 配置校验、仿真、只读诊断、授权硬件运行、监视、CSV导出和数据绘图 |
 | `config.py` | TOML 数据模型与跨字段安全校验 |
 | `diagnostics.py` | 不发送设置命令的 VISA/MultiPyVu 诊断 |
 | `authorization.py` | 精确确认词、诊断 `run_id` 和配置哈希校验 |
@@ -69,6 +72,12 @@ ppms_qcodes_control/
 | `hardware_run.py` | 授权、连接、温场准备、扫描、审计和清理 |
 | `models.py` | 条件、读数、物理状态和尝试结果数据结构 |
 | `plotting.py` | SQLite/ETO 只读分析、拟合、论文图、双栅图和生成清单 |
+| `monitoring.py` | SQLite/WAL短只读快照、状态警告和实时终端渲染 |
+
+### `notebooks/`
+
+- `transport_analysis.ipynb`：只读载入SQLite/ETO，集中修改分析参数、检查质量和预览图；
+  命令助手只打印PowerShell命令，不连接或控制仪器。
 
 ### `tests/`
 
@@ -91,6 +100,8 @@ flowchart LR
     Acquisition --> SQLite["SQLite 即时提交"]
     SQLite --> Summary["平均结果与断点续跑"]
     SQLite --> Export["摘要 CSV / 原始状态 CSV"]
+    SQLite --> Monitor["monitor-run 只读实时状态"]
+    SQLite --> Notebook["Notebook 离线分析"]
 ```
 
 每个测量点按以下顺序执行：
@@ -138,6 +149,8 @@ SQLite 是原始审计数据源，CSV 是派生副本。
 - PPMS 温度、磁场、速率和稳定等待均有配置边界与超时。
 - 一个清理步骤失败不能阻止其他设备继续执行安全清理。
 - 软件保护不能替代实验室联锁、硬件限流、急停和现场操作员。
+- `monitor-run`只显示最近已提交的SQLite状态，不能替代仪器前面板、MultiVu或现场监护；
+  温场稳定等待和栅压ramp期间可能暂时没有新样本。
 
 ## 6. 真实硬件入口
 

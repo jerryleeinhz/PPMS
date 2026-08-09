@@ -30,7 +30,7 @@ port. Do not confuse the MultiPyVu port with a different Quantum Design API.
 From the project directory in PowerShell:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m pip install -e '.[real-ppms]'
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[real-ppms]'
 Copy-Item 'config\hardware.example.toml' 'config\hardware.local.toml'
 ```
 
@@ -51,7 +51,7 @@ implementation, normally NI-VISA on the PPMS computer.
 ## Validate before connecting
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control validate-config config\hardware.local.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control validate-config config\hardware.local.toml
 ```
 
 Validation rejects placeholder or duplicate VISA addresses and invalid TCP
@@ -60,7 +60,7 @@ ports without contacting any device.
 ## Run the read-only diagnostic
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control diagnose-hardware config\hardware.local.toml
 ```
 
 The VISA diagnostic sends only these queries:
@@ -110,7 +110,7 @@ invalidates that diagnostic for control authorization.
 After completing the validation checklist, the authorized command is:
 
 ```powershell
-& '.\.venv\Scripts\python.exe' -m ppms_control run-hardware config\hardware.local.toml `
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control run-hardware config\hardware.local.toml `
   --diagnostic-run-id '<DIAGNOSTIC_RUN_ID>' `
   --confirm 'I CONFIRM REAL HARDWARE CONTROL'
 ```

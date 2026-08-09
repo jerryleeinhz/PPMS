@@ -202,6 +202,16 @@ compliance、漏电流和电流可用标志；PPMS 的温度、磁场、腔体�
   --confirm 'I CONFIRM REAL HARDWARE CONTROL'
 ```
 
+控制命令开始后，在第二个PowerShell窗口只读查看最近已提交状态：
+
+```powershell
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m ppms_control monitor-run `
+  'C:\PPMS_Data\ppms_control.sqlite' --latest-running
+```
+
+重点观察两台Keithley漏电/输出/compliance设定、SR锁定/过载、栅压读回、温场稳定状态和
+最新`xx/1ω`。监视器不连接仪器；栅压ramp期间可能暂时没有新SQLite样本。
+
 运行结束后使用打印出的测量 `RUN_ID`：
 
 ```powershell
@@ -217,6 +227,9 @@ compliance、漏电流和电流可用标志；PPMS 的温度、磁场、腔体�
 `plot-data`会生成电阻二维图、漏电图和manifest；只有提供独立标定的
 `config/gate_calibration.local.toml`时才增加`R(n,D)`。完整图形、公式和跳过规则见
 `docs/DATA_ANALYSIS.md`。
+
+需要交互修改筛选和图形时，打开`notebooks/transport_analysis.ipynb`；完整CLI操作步骤见
+`docs/OPERATING_WORKFLOW.md`。
 
 遇到栅漏电接近阈值、锁相过载/失锁、栅压读回偏差、温场不稳或接线不确定时停止扩大
 范围。软件联锁是最后一道辅助保护，不能替代 Keithley 前面板 compliance、串联保护电阻、
@@ -235,6 +248,7 @@ compliance、漏电流和电流可用标志；PPMS 的温度、磁场、腔体�
 | `config/hardware.example.toml` | 真实硬件配置模板；不要直接填入本机敏感/样品参数 |
 | `config/gate_calibration.example.toml` | 双栅`n-D`坐标的独立标定模板 |
 | `docs/DATA_ANALYSIS.md` | 数据绘图命令、论文图映射、公式和质量边界 |
+| `docs/OPERATING_WORKFLOW.md` | 扫描、实时监视、导出和Notebook操作方法 |
 | `docs/DESIGN_GOALS.md` | 架构、目录、安全边界和设计目标 |
 | `docs/PROJECT_HANDOFF.md` | 两个后端的结论、进度、限制和下一阶段 |
 | `docs/HARDWARE_DIAGNOSTICS.md` | 只读 VISA/MultiPyVu 诊断步骤 |
@@ -260,6 +274,7 @@ compliance、漏电流和电流可用标志；PPMS 的温度、磁场、腔体�
 | `store.py` | SQLite 表、事务、事件、检查点和 CSV 导出 |
 | `analysis.py` | 公共输运长表的平均、圆相位统计和电阻比例列 |
 | `plotting.py` | SQLite/ETO只读绘图、拟合、manifest与双栅坐标图 |
+| `monitoring.py` | SQLite/WAL只读实时状态、进度和警告面板 |
 | `authorization.py` | 真实控制确认词、诊断身份和配置哈希授权 |
 | `diagnostics.py` | 只读探测 VISA 标识、锁相参考、SMU/PPMS 状态 |
 | `hardware_run.py` | 真实扫描的授权、连接、运行结果和安全收尾 |
@@ -283,6 +298,8 @@ compliance、漏电流和电流可用标志；PPMS 的温度、磁场、腔体�
 | `test_eto_data.py` | ETO 格式、单位换算、增量读取和公共长表 |
 | `test_ole_inspection.py` | MultiVu OLE 方法只读枚举 |
 | `test_plotting.py` | 论文/Notebook绘图、双栅图和标定严格性 |
+| `test_monitoring.py` | 只读并发监视、状态警告和ETO模式 |
+| `test_notebook.py` | Notebook语法、清空输出和安全边界 |
 | `tests/__init__.py` | 测试包标识 |
 
 测试只验证软件逻辑，不会证明真实接线、样品安全范围、电容比或电阻绝对标定正确。

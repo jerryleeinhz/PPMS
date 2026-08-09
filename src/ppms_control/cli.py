@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
 import time
@@ -22,6 +23,7 @@ from ppms_control.hardware_run import (
     run_authorized_voltage_sweep,
 )
 from ppms_control.instruments import build_simulated_bundle
+from ppms_control.monitoring import MonitorError, RunMonitor, render_monitor_snapshot
 from ppms_control.ole_inspection import OleInspectionError, inspect_active_multivu_ole
 from ppms_control.plotting import (
     PlotDataError,
@@ -164,6 +166,26 @@ def _parser() -> argparse.ArgumentParser:
     export_transport_summary.add_argument("database", type=Path)
     export_transport_summary.add_argument("run_id")
     export_transport_summary.add_argument("destination", type=Path)
+
+    monitor = subparsers.add_parser(
+        "monitor-run",
+        help="Display the latest committed run and instrument state read-only",
+    )
+    monitor.add_argument("database", type=Path)
+    monitor_selection = monitor.add_mutually_exclusive_group(required=True)
+    monitor_selection.add_argument("--run-id")
+    monitor_selection.add_argument("--latest-running", action="store_true")
+    monitor.add_argument(
+        "--refresh-s",
+        type=float,
+        default=1.0,
+        help="Refresh interval in seconds (default: 1.0)",
+    )
+    monitor.add_argument(
+        "--once",
+        action="store_true",
+        help="Print one snapshot and exit",
+    )
 
     plot_data = subparsers.add_parser(
         "plot-data",
@@ -530,6 +552,34 @@ def _plot_data_command(
     return 0
 
 
+def _monitor_run_command(
+    database: Path,
+    *,
+    run_id: str | None,
+    latest_running: bool,
+    refresh_s: float,
+    once: bool,
+) -> int:
+    if not math.isfinite(refresh_s) or refresh_s <= 0:
+        raise MonitorError("--refresh-s must be a finite number greater than zero.")
+    with RunMonitor(
+        database,
+        run_id=run_id,
+        latest_running=latest_running,
+    ) as monitor:
+        while True:
+            snapshot = monitor.snapshot()
+            frame = render_monitor_snapshot(snapshot)
+            if not once and sys.stdout.isatty():
+                sys.stdout.write("\x1b[2J\x1b[H" + frame + "\n")
+                sys.stdout.flush()
+            else:
+                print(frame, flush=True)
+            if once or snapshot.run["status"] != "running":
+                return 0
+            time.sleep(refresh_s)
+
+
 def _follow_eto_command(
     data_file: Path,
     database: Path,
@@ -721,6 +771,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             print(output)
             return 0
+        if args.command == "monitor-run":
+            return _monitor_run_command(
+                args.database,
+                run_id=args.run_id,
+                latest_running=args.latest_running,
+                refresh_s=args.refresh_s,
+                once=args.once,
+            )
         if args.command == "plot-data":
             return _plot_data_command(
                 args.source,
@@ -757,6 +815,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         DiagnosticError,
         EtoDataError,
         HardwareRunError,
+        MonitorError,
         OleInspectionError,
         PlotDataError,
         StoreError,

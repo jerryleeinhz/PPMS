@@ -1,6 +1,6 @@
 # PPMS 数据分析与论文图生成
 
-更新日期：2026-08-09
+更新日期：2026-08-10
 
 本模块把项目 SQLite 长表、MultiVu ETO 1.2 `.dat` 文件或包含多个 `.dat` 的目录转成
 统一分析记录，并按输入中实际存在的扫描维度生成图、拟合表和可追溯清单。图形需求综合自：
@@ -71,6 +71,24 @@ D = [Cb(Vb - Vb0) - Ct(Vt - Vt0)] / 2 + D0
 
 电容面密度、偏置和符号约定必须来自器件几何或独立标定。没有标定文件时仍会生成
 `R(Vbottom,Vtop)`，但不会生成或宣称 `n-D` 图。
+
+### 2.4 Notebook交互入口
+
+安装并启动：
+
+```powershell
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m pip install -e '.[analysis,notebook]'
+& 'C:\Users\liy56\.conda\envs\AI\python.exe' -m jupyter lab `
+  notebooks\transport_analysis.ipynb
+```
+
+Notebook只调用本文件所述的公共分析API，不连接仪器。顶部集中填写SQLite/ETO路径、
+`run_id`、ETO通道角色、输出目录、格式和可选栅极标定。SQLite只填路径而不填`run_id`时，
+会通过只读API列出最近runs；默认路径为空，因此初次Run All不会读取实验数据或创建输出。
+修改参数后应使用 **Restart Kernel and Run All Cells**。
+
+Notebook中的自定义单图是探索性输出。标准论文图、公式和跳过规则仍由
+`generate_publication_plots`统一实现，并以本次`analysis_manifest.json`为准。
 
 ## 3. 生成文件
 
@@ -152,5 +170,10 @@ D = [Cb(Vb - Vb0) - Ct(Vt - Vt0)] / 2 + D0
 | --- | --- |
 | `src/ppms_control/plotting.py` | 只读数据载入、物理量转换、分组、拟合、图和 manifest |
 | `src/ppms_control/cli.py` | `plot-data` 命令参数和输入类型选择 |
+| `notebooks/transport_analysis.ipynb` | 集中参数、run列表、质量摘要、标准图预览和探索性单图 |
 | `config/gate_calibration.example.toml` | `n-D` 坐标的严格标定模板 |
 | `tests/test_plotting.py` | 标定拒绝规则、论文/Notebook图套件和双栅线扫测试 |
+| `tests/test_notebook.py` | Notebook cell语法、清空输出和无硬件控制导入检查 |
+
+扫描、`monitor-run`、导出和Notebook的逐条PowerShell教程见
+`docs/OPERATING_WORKFLOW.md`。
