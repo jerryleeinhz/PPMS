@@ -34,3 +34,7 @@ for loading, starting, stopping, or querying a sequence from an external Python
 process. Therefore they help us interpret ETO and sequence behavior, but they do
 not replace the read-only `inspect-multivu-ole` JSON collected from the actual
 PPMS computer and installed MultiVu version.
+
+The wider 129-PDF laboratory archive, other option sequence commands, and the
+newer MultiPyVu 3.6.1 option API findings are documented in
+[`docs/QUANTUM_DESIGN_MODULE_CONTROL.md`](../../QUANTUM_DESIGN_MODULE_CONTROL.md).

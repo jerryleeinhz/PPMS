@@ -199,6 +199,9 @@ Electrical Transport Option, Release 1.2.0 Build 0
   标准图预览和探索性单图；默认不选实验数据，命令助手只打印PowerShell命令，不执行硬件控制。
 - `docs/OPERATING_WORKFLOW.md`记录CLI初学者从安装、TOML、仿真、诊断、授权扫描、双窗口监视
   到Notebook/批量绘图的完整操作方法。
+- 已归档并核对公开PPMS/DynaCool模块资料与MultiPyVu 3.6.1源码；确认公开Python option API
+  包含BRT Resistivity（不支持PPMS Model 6000）和Horizontal Rotator，而不包含ETO/VSM或
+  sequence启停。完整下载清单与接口边界见`docs/QUANTUM_DESIGN_MODULE_CONTROL.md`。
 
 ### 6.2 当前SR后端状态
 
@@ -229,7 +232,12 @@ SR865A -> xy/1ω, xy/2ω, xy/3ω
 
 - 生成或修改MultiVu sequence；
 - 从Python启动、停止和监控sequence；
-- 验证控制电脑上是否存在可直接操作ETO的OLE/API。
+- 验证实际控制电脑的MultiVu OLE是否存在受支持的sequence加载、启停和状态API。
+
+公开ETO手册确认MultiVu激活ETO后提供`ETO Resistance`、`ETO dV/dI`、`ETO IV`和
+`New Datafile` sequence commands；公开MultiPyVu 3.6.1源码没有ETO、VSM或sequence控制命令。
+因此GUI运行ETO sequence不需要OLE JSON，但由Python一键加载/启动/中止仍需要实机OLE枚举
+或Quantum Design针对当前版本的官方接口说明。JSON也不能解释`ETOR`位置参数和qmap语义。
 
 静态ETO文件或目录现在可以直接生成按源文件与条件分组的分析图；这不等于已经能够控制
 MultiVu sequence。Ch1/Ch2仍保持分时源记录，绘图层不会假设它们严格同步。
@@ -327,8 +335,8 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 | S2 SR扫描与双栅软件 | 软件完成，实机待验 | 电压/频率/场/温场/grid/paired、漏电联锁；仿真与单元测试通过 | 按硬件清单从0 V逐级验证 |
 | S3 数据分析与运行支持 | 软件完成 | `plot-data`、Notebook、`monitor-run`、操作手册、CrSBr真实ETO回放和合成测试 | 用新SR实测数据复核监视状态、几何和标定 |
 | S4 真实SR硬件分级验证 | 当前阶段 | 尚无样品安全范围内的完整实机证据 | 操作员确认接线、量程、compliance和样品限值 |
-| S5 旋转台角度控制 | 待入口参数 | 当前只读取角度/状态，尚无写角度协议 | 确认允许范围、零点、正方向、安全转速和线缆约束 |
-| S6 ETO运行层 | 文档就绪，待接口确认 | 已归档ETO 1084-700 B2与MultiVu 1070-110 A2公开手册；ETO静态/增量读取和分析完成；sequence启停未实现 | 在PPMS电脑保存只读OLE方法枚举 |
+| S5 旋转台角度控制 | 公开API已确认，安全参数待确认 | MultiPyVu 3.6.1公开`set_position/get_position`并支持PPMS/DynaCool/VersaLab；当前项目仍只读取角度 | 确认机械范围、零点、正方向、磁场/线缆规则后实现授权写入与空载验证 |
+| S6 ETO运行层 | 模块命令已确认，外部启停待接口 | 公开手册确认4个ETO sequence命令；ETO静态/增量读取和分析完成；MultiPyVu没有ETO或sequence启停 | 若需要Python一键运行，在PPMS电脑保存只读OLE方法枚举；否则按GUI sequence路径实机验收 |
 | S7 两后端集成验收 | 未开始 | 最终协议、数据、恢复、绘图和安全清理联合验收 | S4–S6的必需项完成 |
 
 ### 10.3 S3本次完成内容
@@ -351,13 +359,17 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 ### 10.4 S5旋转台待完成清单
 
 当前MultiPyVu适配器只读`sample_position_deg`与状态；“已经记录角度”不等于“已经控制
-角度”。实现真实角度扫描前必须由实验现场确认：
+角度”。现已从Quantum Design维护的MultiPyVu 3.6.1源码确认公开写接口为
+`client.set_position(position_deg, rate_deg_per_sec)`，读接口为`client.get_position()`。
+该版本支持PPMS、DynaCool和VersaLab；PPMS路径通过`SendPpmsCommand("MOVE ...")`执行，
+公开实现限制设定值为-10°至370°，并说明PPMS忽略传入的角速度。这只是软件接口范围，不能
+代替实验室机械安全范围。实现真实角度扫描前仍必须由实验现场确认：
 
 1. 样品杆、线缆和转台的硬限位及软件允许角度范围；
 2. 0°的物理定义、正方向和跨越0°/360°的路径规则；
 3. 安全转速或移动模式、到位判据、超时和稳定等待；
 4. 不同磁场下是否允许转动，以及失联/中断时保持当前位置还是回安全角；
-5. 使用哪一个已验证的MultiPyVu方法和状态码。
+5. 真实设备返回的状态码、到位容差和超时行为。
 
 信息齐备后需要增加严格TOML字段、只读诊断显示、授权角度扫描协议、逐点状态/角度记录、
 中断清理和真实空载分级验证。不得在机械边界未知时发送角度设置命令。
@@ -369,16 +381,26 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 手册覆盖sequence创建、运行、暂停、继续和中止。两者都没有给出外部Python可依赖的OLE/COM
 sequence控制接口，因此文档就绪不等于S6控制接口已确认；来源、页数和SHA-256见同目录README。
 
-MultiPyVu 3.6.1公开客户端和命令工厂没有sequence启停命令；当前开发电脑没有
-DynaCool/MultiVu安装可检查其COM类型库。下一步是在PPMS控制电脑保持MultiVu运行并执行
-`python -m ppms_control inspect-multivu-ole`，保存JSON输出，确认是否有受支持的sequence
-加载、启动、停止和状态方法。不得猜测COM方法，也不得硬编码尚未解释的`ETOR`位置参数。
+扩展资料归档位于
+`C:\Users\liy56\OneDrive - Aalto University\Aalto University\Work\Equipment sheet\PPMS`，
+包含129份公开PDF、MultiPyVu 3.6.1发行包、来源快照和SHA-256清单；调用结论见
+`docs/QUANTUM_DESIGN_MODULE_CONTROL.md`。ETO激活后公开命令为`ETO Resistance`、
+`ETO dV/dI`、`ETO IV`和`New Datafile`。VSM公开命令为`VSM Adv. Measure`、
+`Center Sample`、`Moment vs. Field`和`Moment vs. Temp.`。
+
+MultiPyVu 3.6.1公开客户端和命令工厂没有ETO/VSM或sequence启停命令；当前开发电脑没有
+DynaCool/MultiVu安装可检查其COM类型库。如果S6目标包含Python一键启动/中止，下一步是在
+PPMS控制电脑保持MultiVu运行并执行`python -m ppms_control inspect-multivu-ole`，保存JSON
+输出，确认是否有受支持的sequence加载、启动、停止和状态方法。如果接受操作者从MultiVu
+启动，则不需要该JSON，可以直接做“GUI sequence + Python增量跟随”的实机验收。两条路径都
+不得猜测COM方法，也不得硬编码尚未解释的`ETOR`位置参数或qmap内容。
 
 ## 11. 新会话建议提示词
 
 ```text
 请先阅读ppms_qcodes_control/docs/PROJECT_HANDOFF.md、README.md、
 docs/OPERATING_WORKFLOW.md和docs/DATA_ANALYSIS.md，
-检查git diff与测试。当前主阶段是S4真实SR硬件分级验证；若旋转台机械参数或MultiVu OLE
-JSON已经取得，则按S5/S6入口继续。不要猜测旋转台边界、ETO ETOR参数或未知写接口。
+检查git diff与测试。当前主阶段是S4真实SR硬件分级验证；旋转台公开MultiPyVu写接口已经
+确认，获得机械安全参数后继续S5；S6若接受MultiVu GUI启动则可直接实机验收，若要求Python
+一键启停则需要实机OLE JSON。不要猜测旋转台边界、ETO ETOR/qmap参数或未知写接口。
 ```

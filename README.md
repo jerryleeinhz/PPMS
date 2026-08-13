@@ -12,6 +12,10 @@ scans, live read-only monitoring, exports, and the Notebook, start with
 Publicly hosted reference copies of the Quantum Design ETO and PPMS MultiVu
 manuals, together with their sources and checksums, are indexed in
 [docs/manuals/quantum_design/README.md](docs/manuals/quantum_design/README.md).
+The broader public PPMS/module archive, documented MultiVu sequence entry
+points, current MultiPyVu option APIs, and the remaining ETO/VSM automation
+boundary are summarized in
+[docs/QUANTUM_DESIGN_MODULE_CONTROL.md](docs/QUANTUM_DESIGN_MODULE_CONTROL.md).
 For the SR lock-in resistance definition, dual-gate `grid`/`paired` workflow,
 manual TOML parameters, data columns, and a file-by-file testing map, see
 [docs/SR_DUAL_GATE_TEST_GUIDE.md](docs/SR_DUAL_GATE_TEST_GUIDE.md).
