@@ -9,6 +9,9 @@ architecture boundaries, design goals, and real-hardware entry criteria.
 For a beginner-oriented PowerShell workflow covering simulation, authorized
 scans, live read-only monitoring, exports, and the Notebook, start with
 [docs/OPERATING_WORKFLOW.md](docs/OPERATING_WORKFLOW.md).
+Publicly hosted reference copies of the Quantum Design ETO and PPMS MultiVu
+manuals, together with their sources and checksums, are indexed in
+[docs/manuals/quantum_design/README.md](docs/manuals/quantum_design/README.md).
 For the SR lock-in resistance definition, dual-gate `grid`/`paired` workflow,
 manual TOML parameters, data columns, and a file-by-file testing map, see
 [docs/SR_DUAL_GATE_TEST_GUIDE.md](docs/SR_DUAL_GATE_TEST_GUIDE.md).

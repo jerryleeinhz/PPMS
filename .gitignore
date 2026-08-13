@@ -1,7 +1,9 @@
 __pycache__/
 .ipynb_checkpoints/
+.firecrawl/
 *.py[cod]
 run_data/
 config/*.local.toml
+docs/manuals/quantum_design/*.pdf
 .test-tmp/*
 !.test-tmp/.gitkeep
