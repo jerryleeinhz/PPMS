@@ -129,6 +129,10 @@ wheel。`wheelhouse`中不应出现`.tar.gz`或`.zip`源码依赖。
 2. NI-VISA和需要时的NI-488.2；
 3. DynaCool MultiVu、PPMS控制器和外部仪器驱动。
 
+离线电脑不需要安装Conda。把Python官网的`Windows installer (64-bit)`提前放入U盘，在离线
+电脑上安装到已知位置，例如`C:\Python312`，或者记录安装程序显示的实际`python.exe`路径。
+不要使用或修改MultiVu可能自带的Python环境。
+
 不要把`pip`包安装成功等同于硬件驱动已经可用。wheel只能安装Python层依赖。
 
 下面假设U盘盘符是`D:`，Python安装在`C:\Python312\python.exe`。实际路径不同时，只修改
@@ -153,14 +157,43 @@ if ($Mismatch) { throw "SHA-256 mismatch: $Mismatch" }
 
 ### 3.2 创建独立Python环境
 
+Python自带的`venv`就是这里需要的环境管理工具，不依赖Conda。先确认基础Python，再创建
+一次项目专用环境：
+
 ```powershell
 New-Item -ItemType Directory -Path 'C:\PPMS_Control'
-& 'C:\Python312\python.exe' -m venv 'C:\PPMS_Control\.venv'
+$BasePython = 'C:\Python312\python.exe'
+& $BasePython --version
+& $BasePython -m venv 'C:\PPMS_Control\.venv'
 $Python = 'C:\PPMS_Control\.venv\Scripts\python.exe'
 & $Python --version
 ```
 
 使用独立虚拟环境可以避免修改MultiVu或其他实验软件自带的Python环境。
+
+如果希望在当前PowerShell窗口中直接输入`python`，可以激活环境：
+
+```powershell
+& 'C:\PPMS_Control\.venv\Scripts\Activate.ps1'
+python -c "import sys; print(sys.executable)"
+```
+
+输出必须是`C:\PPMS_Control\.venv\Scripts\python.exe`。激活后PowerShell提示符通常出现
+`(.venv)`。关闭PowerShell后激活状态自动消失；每个新窗口都需要重新激活。退出当前环境：
+
+```powershell
+deactivate
+```
+
+若实验室PowerShell策略禁止运行`Activate.ps1`，不需要修改系统执行策略，也不影响安装和
+测量。保持使用下面这种完整路径即可：
+
+```powershell
+$Python = 'C:\PPMS_Control\.venv\Scripts\python.exe'
+& $Python -m ppms_control --help
+```
+
+本项目文档优先使用`& $Python ...`，因为它不依赖激活状态，也更不容易误用其他Python。
 
 ### 3.3 从本地wheelhouse安装
 

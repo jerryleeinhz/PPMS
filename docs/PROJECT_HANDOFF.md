@@ -358,7 +358,8 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
   的操作边界。
 - 增加`docs/OFFLINE_INSTALLATION.md`，记录联网Windows/Python 3.12电脑制作完整wheelhouse、
   源码快照和SHA-256，U盘转移，以及离线PPMS电脑最小/完整安装、仿真、只读诊断和版本回退
-  流程；明确wheel不包含Python、NI驱动、MultiVu系统软件或本机硬件配置。
+  流程；明确wheel不包含Python、NI驱动、MultiVu系统软件或本机硬件配置，并记录无Conda时
+  使用Python内置`venv`创建、激活或以完整解释器路径运行的方法。
 
 ### 10.4 S5旋转台待完成清单
 
