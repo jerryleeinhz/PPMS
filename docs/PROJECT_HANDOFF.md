@@ -1,6 +1,6 @@
 # PPMS输运控制项目：设计方案、目标、进展与交接
 
-更新日期：2026-08-13
+更新日期：2026-08-19
 
 本文档是新会话的首要上下文。继续开发前，应先阅读本文档以及项目根目录的
 `README.md`。本文档记录已经确认的实验需求、真实ETO文件格式、软件边界、当前
@@ -263,6 +263,7 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 | `notebooks/transport_analysis.ipynb` | 离线交互分析、run选择、质量检查和图预览 |
 | `docs/DATA_ANALYSIS.md` | CrSBr Notebook与2M-WS2论文图映射、命令、公式和数据边界 |
 | `docs/OPERATING_WORKFLOW.md` | PowerShell扫描、monitor-run和Notebook逐步操作手册 |
+| `docs/OFFLINE_INSTALLATION.md` | wheelhouse制作、U盘转移、离线安装、验证和回退手册 |
 | `config/hardware.example.toml` | GPIB和PPMS Server地址模板 |
 | `config/gate_calibration.example.toml` | 双栅`n-D`转换的严格标定模板 |
 | `tests/test_eto_data.py` | ETO解析、标准化和长表存储测试 |
@@ -325,7 +326,7 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
 
 ### 10.2 当前阶段表
 
-截至2026-08-13，当前主阶段为 **S4：真实SR硬件分级验证**。S5和S6可在各自入口信息
+截至2026-08-19，当前主阶段为 **S4：真实SR硬件分级验证**。S5和S6可在各自入口信息
 齐备后并行推进。
 
 | 阶段 | 状态 | 范围与完成证据 | 下一入口 |
@@ -355,6 +356,9 @@ SR锁相测得的物理量、电阻换算、双栅`grid`/`paired`操作、手动
   `plotting.py`；Notebook已使用`Python (AI)`内核顺序Run All验证。
 - 增加`docs/OPERATING_WORKFLOW.md`，固定“控制PowerShell + 只读监视PowerShell + 离线Notebook”
   的操作边界。
+- 增加`docs/OFFLINE_INSTALLATION.md`，记录联网Windows/Python 3.12电脑制作完整wheelhouse、
+  源码快照和SHA-256，U盘转移，以及离线PPMS电脑最小/完整安装、仿真、只读诊断和版本回退
+  流程；明确wheel不包含Python、NI驱动、MultiVu系统软件或本机硬件配置。
 
 ### 10.4 S5旋转台待完成清单
 

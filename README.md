@@ -9,6 +9,10 @@ architecture boundaries, design goals, and real-hardware entry criteria.
 For a beginner-oriented PowerShell workflow covering simulation, authorized
 scans, live read-only monitoring, exports, and the Notebook, start with
 [docs/OPERATING_WORKFLOW.md](docs/OPERATING_WORKFLOW.md).
+For first installation on a computer without internet access, including how
+to prepare a complete wheelhouse, source snapshot, checksums, and the offline
+verification sequence, use
+[docs/OFFLINE_INSTALLATION.md](docs/OFFLINE_INSTALLATION.md).
 Publicly hosted reference copies of the Quantum Design ETO and PPMS MultiVu
 manuals, together with their sources and checksums, are indexed in
 [docs/manuals/quantum_design/README.md](docs/manuals/quantum_design/README.md).

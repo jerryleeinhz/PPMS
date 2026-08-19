@@ -1,6 +1,6 @@
 # PPMS 扫描、实时监视与 Notebook 分析操作手册
 
-更新日期：2026-08-10
+更新日期：2026-08-19
 
 本文面向第一次使用本项目 CLI 的实验操作员。完整工作流为：
 
@@ -40,6 +40,12 @@ PowerShell 行尾反引号 `` ` `` 表示下一行仍属于同一条命令。也
 文档中的 `<RUN_ID>`、`<DIAGNOSTIC_RUN_ID>` 是占位符，使用时连尖括号一起替换。
 
 ## 2. 第一次安装和进入目录
+
+本节命令适用于已经具有项目目录和可联网Python环境的开发电脑。首次在完全离线的PPMS
+电脑部署时，不要直接复制现有虚拟环境，也不要在那里运行在线`pip install -e`。应先在
+联网的64位Windows/Python 3.12电脑制作完整wheelhouse和源码快照，再使用U盘转移；逐条命令、
+校验和、最小/完整安装选择及验证顺序见
+[OFFLINE_INSTALLATION.md](OFFLINE_INSTALLATION.md)。
 
 打开 PowerShell，进入项目目录：
 
